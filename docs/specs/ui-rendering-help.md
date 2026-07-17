@@ -213,6 +213,56 @@ rather than mysteriously vanishing.
 - [ ] Known closing tags are consumed; unknown closing tags
       pass through.
 
+### 2.6 Room-description keyword highlighting
+
+Room descriptions may mark **actionable** tokens in their prose
+with semantic tags, so the words a player can act on read in
+color while flavor prose stays plain. The intent is a scannable
+description, not decoration: a token is highlighted only when it
+maps to something the player can *do*. Four categories, each a
+theme tag:
+
+| Tag | For | Trigger |
+|---|---|---|
+| `<exit>` | a direction that is a real exit of the room | `runs <exit>north</exit>` |
+| `<feature>` | a noun the player can look at / search / use | `a dead <feature>fountain</feature>` |
+| `<threat>` | a hostile or law presence | `a <threat>Knight Errant patrol</threat>` |
+| `<cmd>` | a backtick command the room suggests | `` <cmd>`ask`</cmd> `` |
+
+Authoring rules:
+
+- Highlight only what is actionable. Pure atmosphere (a sagging
+  couch, cigarette ends) stays prose. Over-highlighting defeats
+  the scan.
+- `<exit>` wraps the **direction word** (`north`, `down`), not the
+  place name — it shares the cyan of the Exits line, tying prose
+  and exits together. Only tag a direction that is an actual exit.
+- Tags do not nest and should not straddle the reflow: keep each
+  `<tag>…</tag>` span within one authored line.
+
+**Interaction with reduced light.** A `dim` room mutes its
+description prose (light-and-darkness §5.1). Because the color
+renderer is flat (a tag close resets all attributes, §2.4), the
+dim render cannot simply wrap the whole description in one dim
+attribute — a highlight inside would render dimmed and would drop
+the dim for the remainder of the line. Instead the dim render
+mutes only the plain runs *between* highlights, leaving each
+highlight span at full color so it pops against the muted prose.
+In a `lit` room the description renders normally; the same
+highlights read quieter against bright prose but still scan. On a
+no-color client every tag strips away to clean prose.
+
+**Acceptance criteria**
+
+- [ ] The four highlight tags resolve to their theme colors in a
+      lit room's description.
+- [ ] In a dim room, plain prose renders muted while each
+      highlight renders at full color (not dimmed), and prose
+      after a highlight returns to muted.
+- [ ] A no-color client sees clean prose with every tag removed.
+- [ ] Highlighting is content-authored — the renderer applies no
+      automatic keyword detection.
+
 ---
 
 ## 3. Theme registry

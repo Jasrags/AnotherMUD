@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/light"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -139,10 +140,12 @@ const (
 
 // renderFullRoom is the lit/dim render: the room name, description,
 // ambience, occupants, and exits. When dim is true the description is
-// wrapped in the {dim} attribute so the prose reads muted while the
-// rest of the body keeps its semantic colors (a single SGR attribute
-// over plain prose, so no nested-tag reset problem). Both forms degrade
-// to clean text on no-color clients.
+// passed through render.DimWrap, which mutes the plain prose runs while
+// leaving inline keyword-highlight tags (<feature>/<exit>/<threat>/<cmd>,
+// ui-rendering-help §2.6) at full color so they pop against the dim — the
+// flat renderer has no attribute stack, so a single {dim} wrapper over
+// tagged prose would dim the highlights and drop the dim after each one.
+// Both forms degrade to clean text on no-color clients.
 func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, exitVisible func(world.Direction, world.Exit) bool, entityVisible func(entities.Entity) bool, players []string) string {
 	var b strings.Builder
 	b.WriteString("<title>")
@@ -151,9 +154,12 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 	b.WriteString("\n")
 	desc := reflowDescription(r.Description)
 	if dim && desc != "" {
-		b.WriteString("{dim}")
-		b.WriteString(desc)
-		b.WriteString("{/}")
+		// DimWrap mutes the plain prose while leaving inline keyword-
+		// highlight tags (<feature>/<exit>/<threat>/<cmd>) at full color,
+		// so they pop against the dim (ui-rendering-help §2.6). A plain
+		// `{dim}desc{/}` would dim the highlights and drop the dim after
+		// each one — the flat renderer has no attribute stack.
+		b.WriteString(render.DimWrap(desc))
 	} else {
 		b.WriteString(desc)
 	}

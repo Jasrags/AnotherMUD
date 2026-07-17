@@ -3,12 +3,14 @@ area: seattle-safehouse
 name: "{G}The Flop{x}"
 description: |
   A one-window squat over a Downtown alley: a sagging couch, a card table ringed
-  with cigarette burns, a cooler of soy-caf, and a wall of trid-screens tuned to
-  traffic cams and police bands. This is where your fixer stakes new talent — off
-  the grid, out of the rain, nobody's turf but his. A gun table waits through the
-  east door and a chop-doc keeps the back room to the west; the stairs down lead
-  out to Westlake Plaza and the whole sprawl beyond. `ask` the fixer about getting
-  started when you're ready.
+  with cigarette burns, a cooler of soy-caf, and a wall of
+  <feature>trid-screens</feature> tuned to traffic cams and police bands. This is
+  where your fixer stakes new talent — off the grid, out of the rain, nobody's
+  turf but his. A <feature>gun table</feature> waits through the <exit>east</exit>
+  door and a <feature>chop-doc</feature> keeps the back room to the
+  <exit>west</exit>; the stairs <exit>down</exit> lead out to Westlake Plaza and
+  the whole sprawl beyond. <cmd>`ask`</cmd> the fixer about getting started when
+  you're ready.
 # Interior spawn room: pinned lit, shielded, safe. The stairs DOWN graduate you
 # into Downtown (an area transition into seattle-downtown).
 terrain: indoors

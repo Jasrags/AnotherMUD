@@ -41,6 +41,16 @@ tags:
   # closed doors reuse <warning>, locked doors <danger>.
   exit: { fg: cyan, html: "#33CCCC" }
 
+  # Room-description keyword highlighting (ui-rendering-help §2.6). Authors
+  # wrap ACTIONABLE tokens in a room's prose so they pop — exits reuse
+  # <exit> above (prose directions share the Exits-line cyan). These three
+  # cover the rest: an examinable/usable feature, a hostile/law threat, and
+  # a suggested backtick command. In a dim room the muted prose lets these
+  # carry; in a lit room they read quieter but still scan.
+  feature: { fg: yellow,       html: "#E0B84D" }  # look/search/use targets
+  threat:  { fg: bright-red,   html: "#FF5C5C" }  # hostile or law presence
+  cmd:     { fg: bright-green, html: "#6EE787" }  # a suggested `verb`
+
   # Room rendering — "You see here:" entities. Other players and
   # neutral mobs; placed items reuse the item.* rarity tags above.
   present.player:  { fg: bright-white, html: "#FFFFFF" }

@@ -3,16 +3,18 @@ area: seattle-downtown
 name: "{C}Westlake Plaza{x}"
 description: |
   Ferrocrete and polished granite open into the plaza at the centre of Downtown,
-  ringed by arcologies whose logos turn slow against the drizzle. A dead fountain
-  holds a skin of rainwater and cigarette ends, and grav-ads drift overhead
-  murmuring corp slogans to no one. Office drones cut across in a hurry, eyes on
-  their commlinks, and a Knight Errant patrol lingers at the north end — nobody
-  runs open commerce under this much corporate glass. Real business happens off
-  the plaza: up a stairwell off the alley your fixer keeps a flop, and the docs
-  who cut chrome work the Barrens and the undercity, well out of the light. The
-  corporate canyon of Fifth Avenue runs north, the neon of Pike Street glows
-  south, historic Pioneer Square lies east, and the cold air off Elliott Bay
-  drifts in from the west.
+  ringed by arcologies whose logos turn slow against the drizzle. A dead
+  <feature>fountain</feature> holds a skin of rainwater and cigarette ends, and
+  <feature>grav-ads</feature> drift overhead murmuring corp slogans to no one.
+  Office drones cut across in a hurry, eyes on their commlinks, and a
+  <threat>Knight Errant patrol</threat> lingers at the north end — nobody runs
+  open commerce under this much corporate glass. Real business happens off the
+  plaza: up a <feature>stairwell</feature> off the alley your fixer keeps a flop,
+  and the docs who cut chrome work the Barrens and the undercity, well out of the
+  light. The corporate canyon of Fifth Avenue runs <exit>north</exit>, the neon
+  of Pike Street glows <exit>south</exit>, historic Pioneer Square lies
+  <exit>east</exit>, and the cold air off Elliott Bay drifts in from the
+  <exit>west</exit>.
 terrain: sprawl
 exits:
   north: fifth-avenue
