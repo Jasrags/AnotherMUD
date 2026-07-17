@@ -1,4 +1,4 @@
-<!-- Generated: 2026-07-08 | Engine core: tick, eventbus, command, services | Token estimate: ~980 -->
+<!-- Generated: 2026-07-17 | Engine core: tick, eventbus, command, services | Token estimate: ~1020 -->
 
 # Engine & Command Flow
 
@@ -6,7 +6,7 @@ The "backend" of a MUD = the tick loop, the event bus, and command dispatch into
 services. No HTTP routes — the route analog is `verb → handler → service → store`.
 
 ## Command dispatch (the "route table")
-`internal/command` (9.0k LOC, largest pkg). Player line → `Registry.Dispatch`:
+`internal/command` (9.5k LOC, largest pkg). Player line → `Registry.Dispatch`:
 ```
 raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
                          lowest-registration-order prefix; admin gate)
@@ -43,10 +43,13 @@ Handlers wired in `main.go`: combat round (`_COMBAT_CADENCE`), `autosave`
 (`Manager.SaveAll` of dirty actors), `idle-sweep`, `linkdead-cleanup`, effect
 ticks, `ability-idle-tick`, vitals regen, `fuel-burn` (lit light-source fuel →
 gutter), `corpse-decay`, `campfire-decay`, `craft-complete` (timed crafting),
-`mount-travel-regen` (ridden/parked mounts recover their travel pool,
-vitals-regen cadence), `ai-tick`/`area-tick` (spawn + door reset + portal expiry),
-GMCP flushers (Char.Items/Combat/Effects/Vitals/Experience/Status/Login/StatusVars — cadence-1
-poll-and-diff), `scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
+`mount-travel-regen` (ridden/parked mounts recover travel pool, vitals-regen
+cadence), `ai-tick`/`area-tick` (spawn + door reset + portal expiry), `transit-move`
+(elevator/subway train step), `security-patrol-sweep` (heat decay + wanted-level
+patrol spawn), `action-complete-sweep` (busy-state expiry + don/doff/reload route),
+GMCP flushers (Char.Items/Combat/Effects/Vitals/Experience/Status/Login/StatusVars/
+Inventory/Recipes/Shop/Trade/Auction/Quests/Map — cadence-1 poll-and-diff), 
+`scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
 In-game clock (`gameclock`) is tick-driven, not wall-clock, and **persists**
 (`gameclock.Store` → `saves/clock.yaml`, seeded at boot, flushed on hour
 advance + clean shutdown) so darkness doesn't reset to night on restart.
@@ -54,8 +57,9 @@ advance + clean shutdown) so darkness doesn't reset to night on restart.
 ## Event bus
 `internal/eventbus` — typed bus, cancellable + non-cancellable events.
 `Publish` / `PublishCancellable` (veto). Producers = handlers/services after a
-mutation; consumers = questwatch, ai disposition, gmcp flushers, scripting bridge.
-Cancellable-event index lives in `docs/specs/README.md`.
+mutation; consumers = questwatch, questspawn visibility, ai disposition, gmcp
+flushers, scripting bridge, security heat tracker, faction rank syncer, reputation
+tier syncer. Cancellable-event index lives in `docs/specs/README.md`.
 
 ## Services (called by handlers)
 | Service | Pkg | Role |
@@ -65,8 +69,9 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | economy.{Currency,Shop,Rest,Consumable,Sustenance}Service | economy | gold, shops, sustenance/rest |
 | escrow.Transaction + AuditStore | escrow | stage/commit/rollback atomic value swap; shared trade audit log (consumed by trade + auction) |
 | trade.Manager | trade | synchronous same-room player swap (direct-trade.md) |
-| auction.Manager + Store | auction | async persisted marketplace: list/browse/buyout/collect/expire/admin; versioned listing store w/ serialized item; verbs `auction`/`auctions`/`unlist`/`browse`/`buyout`/`collect`/`auctionremove`/`auctionrefund`; `auction-expire` tick |
+| auction.Manager + Store | auction | async persisted marketplace: list/browse/buyout/collect/expire/admin; versioned listing store w/ serialized item |
 | quest.Service + queststore + questwatch | quest* | accept/advance/turn-in |
+| questspawn.Manager | questspawn | runtime stage-triggered mobs/items per quest; per-player ownership; visibility filter |
 | effect.Manager | effect | buffs/debuffs over ticks |
 | condition | condition | status conditions (combat hooks, player-applied via effects) |
 | feat | feat | player-chosen perks (source-keyed bonuses, known-feat + credit tracking) |
@@ -77,9 +82,13 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | action.Tracker | action | busy-state / don-doff timers / reload gate; blocks move + combat while busy |
 | faction.Manager | faction | per-character standing (signed value), rank tags, shift events, disposition gate |
 | reputation.Manager | reputation | single-axis renown score (fame/infamy/unknown tier tags), shift events |
+| security.HeatTracker | security | per-player heat (crime → heat/wanted), patrol sweep (threshold spawn), de-escalation (wanted verb / bribe) |
+| karma.Ledger | karma | spendable karma balance (Current/Total), grant/spend for SR advancement |
 | entities.{Store,Placement,Contents} | entities | items/mobs, room placement, containers |
 | mount service | cmd/anothermud/mountservice.go | materialize/dematerialize an owned mount into a live `MobInstance` (mounts.md §3); `MountInstance` surface (`IsMount`/`OwnerID`/`Travel`/`Temperament`) lives in `entities/mob_mount.go`. Verbs `mounts`/`buymount`/`stable`/`unstable`/`mount`/`dismount` in `command/mount.go`; mounted travel re-points the metered mover so the **mount** spends `travel` per step (not the rider's movement). `mount.before` cancellable event |
 | hireling service | cmd/anothermud/hirelingservice.go | materialize/dematerialize owned hirelings; hire/dismiss/order/stances verbs in `command/hireling.go`; owned hirelings follow + assist in combat (same pattern as mounts) |
+| transit.Machine | transit | elevator/subway state machine: car position (in-transit vs at-stop), door state, open-doors action gate, scheduled vs on-demand call policy, keyword-exit retarget to the car itself |
+| guard.Supervisor | guard | per-actor state-machine supervision: tracks the "guard" assignment (e.g. a mob guarding a waypoint), receives `entity.moved` events to detect deviations, and enforces guard-gating (guards block move in some use cases) |
 | session.Manager | session (7.1k) | actors, flood/idle/link-dead/takeover, SaveAll, party/group membership |
 
 ## Key files

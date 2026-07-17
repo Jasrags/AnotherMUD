@@ -1,8 +1,8 @@
-<!-- Generated: 2026-07-08 | Client-facing layer (telnet/WS + GMCP; web client = recorded direction, not built) | Token estimate: ~860 -->
+<!-- Generated: 2026-07-17 | Client-facing layer (telnet/WS + GMCP; web client in progress) | Token estimate: ~920 -->
 
 # Presentation & Networking
 
-No web frontend exists **yet** — clients are line-oriented terminals + GMCP-aware
+No full web frontend exists **yet** — clients are line-oriented terminals + GMCP-aware
 clients (Mudlet). A browser **web UI over the existing WS+GMCP channel is the
 recorded long-term rich-client direction** (docs/BACKLOG.md, "Web client"); the
 Mudlet HUD path is paused. This is the "frontend" analog: transports, protocol
@@ -28,17 +28,17 @@ Room.Info (per-viewer `light` level + optional area-local `x`/`y`/`z` room
 coordinates, omitted when unplaced; `name`/`details` run through `gmcpPlain`
 so `{color}` brace/angle markup never leaks into a graphical client's labels),
 Comm.Channel.Text — flushed on cadence-1 tick handlers (poll-and-diff)
-in `main.go`. Identical frames go over telnet SB and the WS envelope.
+in `main.go`. **Web-client packages** (structured for browser UI, WS delivery):
+Char.Inventory (items + containers + stacking), Char.Recipes (known recipes
+for craft UI), Char.Shop (open-shop item list + prices), Char.Trade (direct-trade
+state + offer), Char.Auction (active listings + bid state), Char.Quests (journal),
+Room.Map (area-local coords + visited rooms for minimap). Identical frames go
+over telnet SB and the WS envelope.
 **Client→server** (request/response): `Input.Complete` /
 `Input.Complete.List` (tab-completion §13) — inbound frames dispatched on both
 transports to a session handler (`session/gmcp_complete.go`), per-connection
 rate-limited (token bucket, never disconnects). `internal/mssp` = MUD server
 status vars on connect.
-
-**Known gap:** `Char.Vitals` emits only hp/maxhp/sustenance today; the
-`mp/maxmp/mv/maxmv` fields exist (`omitempty`) but `flushGmcpVitals` doesn't
-populate the generalized `internal/pool` currents (mana/movement/One Power) —
-a prerequisite before any resource-bar HUD (web or Mudlet).
 
 ## Rich clients & GMCP tooling
 - **Mudlet mapper** (`clients/mudlet/AnotherMud-Mapper.lua` + README): a
@@ -55,15 +55,22 @@ a prerequisite before any resource-bar HUD (web or Mudlet).
   plain harness never did, so pre-existing live tests never exercised GMCP).
 
 ## Rendering
-- `internal/render` (1.4k LOC) — room/look output, exits, item listings,
+- `internal/render` (1.5k LOC) — room/look output, exits, item listings,
   decoration + stacking integration, weather ambience line.
+- **Prompt rendering** (`render/prompt.go`, ui-rendering-help §7.1) — **pool-adaptive**:
+  the default template (`[HP {hp}/{maxhp}]`, `[ST {stun}/{maxstun}]` if Stun pool
+  exists, `[MA {mana}/{maxmana}]` if Mana pool exists, `[MV {mv}/{maxmv}]`) shows
+  only the resource pools that character actually has. A Shadowrun street-samurai
+  (Physical+Stun, no Mana) renders `[HP]/[ST]/[MV]`, while a mage shows `[HP]/[ST]/[MA]/[MV]`.
+  Custom player templates bypass the pool-awareness and render exactly as typed.
+  Semantic color tags: `<hp>`, `<stun>`, `<mana>`, `<mv>`.
 - **Panel renderer** (`render/panel.go`, ui-rendering-help §8) — framed,
   width-aware, tag-aware ASCII boxes (`| = -` wrapped in `<frame>`, so no
   glyph-fallback debt). Powers the `score`/`sc` character sheet: a bento layout
   (Character|Combat and Attributes|Purse&Training two-column sections, full-width
   Equipment, XP footer). `equipment`/`eq` shares the sheet's equipment gatherer
   (`command.gatherScoreEquip`); both color item names by `item.*` rarity.
-- **Semantic color tags** (`<title>/<subtle>/<highlight>/hp/mana/mv/good/warning/
+- **Semantic color tags** (`<title>/<subtle>/<highlight>/hp/stun/mana/mv/good/warning/
   danger/gold/frame/item.*/exit/present.*/weather.*/time.*>`) are emitted by the
   renderers and defined in `content/core/theme/theme.yaml` (pack-overridable;
   unknown tags pass through as literal text).
