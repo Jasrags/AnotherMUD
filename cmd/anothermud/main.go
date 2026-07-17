@@ -1846,16 +1846,24 @@ func run() error {
 		},
 	})
 	// Crime intake: attribute each kill to the responsible player (killer or
-	// hireling owner) and feed it to the heat engine. A wild-mob / scripted kill
-	// has no responsible player and raises no heat.
+	// hireling owner) and feed it to the heat engine, weighted by the victim
+	// (security-response.md §2 v2). Killing law enforcement / a civilian is a
+	// murder (full heat); killing a hostile (a ganger) is violence (a fraction). A
+	// wild-mob / scripted kill has no responsible player and raises no heat.
 	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
 		e, ok := ev.(eventbus.MobKilled)
 		if !ok || e.KillerID == "" {
 			return
 		}
-		if pid, _ := responsiblePlayer(entityStore, e.KillerID); pid != "" {
-			heatTracker.OnKill(ctx, pid, e.RoomID)
+		pid, _ := responsiblePlayer(entityStore, e.KillerID)
+		if pid == "" {
+			return
 		}
+		kind := security.CrimeViolence
+		if tpl, terr := registries.Mobs.Get(mob.TemplateID(e.TemplateID)); terr == nil && isLawfulVictim(tpl.Tags) {
+			kind = security.CrimeMurder
+		}
+		heatTracker.OnCrime(ctx, pid, e.RoomID, kind)
 	})
 	if err := loop.Register("security-response", cadenceTicks(cfg.TickInterval, securitySweep), heatTracker.Sweep); err != nil {
 		return fmt.Errorf("register security-response tick: %w", err)
@@ -3599,6 +3607,7 @@ func run() error {
 		Trades:                tradeMgr,
 		Auction:               auctionMgr,
 		Shop:                  shopSvc,
+		Security:              securityAdapter{heatTracker},
 		Sustenance:            sustenanceSvc,
 		Rest:                  restSvc,
 		Consumable:            consumableSvc,
@@ -4156,6 +4165,21 @@ func upperFirst(s string) string {
 		return s
 	}
 	return string(unicode.ToUpper(r)) + s[size:]
+}
+
+// securityAdapter bridges the security.HeatTracker to the command.SecurityService
+// interface the crime/de-escalation verbs consume (security-response.md §7 v2).
+// It maps ReportBurn → OnCrime(CrimeBurn) and passes Status / ClearHeat through.
+// Safe when the tracker is disabled (OnCrime no-ops, Status/ClearHeat return zero).
+type securityAdapter struct{ t *security.HeatTracker }
+
+func (s securityAdapter) ReportBurn(ctx context.Context, playerID string, roomID world.RoomID) {
+	s.t.OnCrime(ctx, playerID, roomID, security.CrimeBurn)
+}
+func (s securityAdapter) Status(playerID string) (int, int) { return s.t.Status(playerID) }
+func (s securityAdapter) ClearHeat(playerID string) int     { return s.t.ClearHeat(playerID) }
+func (s securityAdapter) Seed(playerID string, heat, wanted int) {
+	s.t.Seed(playerID, heat, wanted)
 }
 
 // bootSpawner adapts the runtime entity store + placement index to

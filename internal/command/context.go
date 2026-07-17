@@ -159,6 +159,10 @@ type Context struct {
 	Auction *auction.Manager
 	// Shop is the M11.2 shop service. nil in tests.
 	Shop *economy.ShopService
+	// Security is the heat engine (security-response.md §7 v2): the crime verbs
+	// (a caught fake SIN), `wanted`, and de-escalation (`bribe`) speak through it.
+	// nil in tests / a world with no security zones — callers nil-guard.
+	Security SecurityService
 	// Rest is the M11.4 rest service. nil in tests.
 	Rest *economy.RestService
 	// Consumable is the M11.5 consumable service. nil in tests.

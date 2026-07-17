@@ -50,6 +50,7 @@ func checkpointBlocks(ctx context.Context, c *Context, dst *world.Room) (bool, e
 		// gate); persist it by re-syncing the inventory tree + flipping the dirty
 		// bit, so the burn survives a relog (sin-and-legality.md §7).
 		c.Actor.MarkContentsDirty()
+		reportBurnCrime(ctx, c) // getting caught at a checkpoint is a crime (heat, §7 v2)
 		return true, c.Actor.Write(ctx, fmt.Sprintf("The checkpoint scanner flags %s as forged — it voids the credential and turns you back. %s is burned.", burned, capitalize(burned)))
 	default:
 		return true, c.Actor.Write(ctx, "The checkpoint refuses you.")

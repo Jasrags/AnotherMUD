@@ -171,11 +171,29 @@ type Locator interface {
 // All fields are optional. Handlers MUST tolerate nils — unit tests
 // for command groups that don't touch items routinely pass a zero-value
 // env.
+// SecurityService is the heat-engine surface the crime + de-escalation verbs use
+// (security-response.md §7 v2). Implemented by an adapter over the security
+// HeatTracker, wired at the composition root; nil in tests / a world with no
+// security zones (callers nil-guard). ReportBurn feeds a caught fake SIN as a
+// crime; Status reads an offender's (heat, wanted) for the `wanted` verb;
+// ClearHeat is the de-escalation primitive `bribe` spends, returning the heat it
+// wiped so the caller can price the bribe / report the effect.
+type SecurityService interface {
+	ReportBurn(ctx context.Context, playerID string, roomID world.RoomID)
+	Status(playerID string) (heat, wanted int)
+	ClearHeat(playerID string) int
+	// Seed restores a player's persisted heat + wanted level at login
+	// (security-response.md §7 v2). Zero values leave them clean.
+	Seed(playerID string, heat, wanted int)
+}
+
 type Env struct {
 	World       *world.World
 	Broadcaster Broadcaster
 	Items       *entities.Store
 	Placement   *entities.Placement
+	// Security is the heat engine (security-response.md §7 v2). nil in tests.
+	Security SecurityService
 	// Contents is the container↔item index (M5.9b). Consumed by the
 	// put handler to move items between actor inventory and
 	// containers and to read container fullness. May be nil in tests

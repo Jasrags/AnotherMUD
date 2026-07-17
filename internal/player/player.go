@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 37
+const CurrentVersion = 38
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -397,6 +397,16 @@ type Save struct {
 	// sync), exactly as faction re-mirrors its rank tag. Renown history is
 	// runtime-only in v1 (matching faction/alignment).
 	Reputation int `yaml:"reputation,omitempty"`
+
+	// Heat / WantedLevel persist the security heat engine's per-character state
+	// (security-response.md §7 v2) so a relog doesn't wipe the law's attention.
+	// Snapshotted from the live tracker in Persist and re-seeded at login. Added in
+	// v38; absent (a pre-v38 save, or a clean character) decodes to 0 = cold, which
+	// is the tracker's default, so absent and a stored 0 are indistinguishable.
+	// Offline decay is not modelled in v1 — heat resumes at its logged-out value
+	// and decays live. Runtime-only history (matching faction/reputation).
+	Heat        int `yaml:"heat,omitempty"`
+	WantedLevel int `yaml:"wanted_level,omitempty"`
 
 	// Pools is the persisted current value of the actor's generalized
 	// resource pools — mana / movement today, the One Power tomorrow (WoT
@@ -800,6 +810,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	34: migrateV34toV35,
 	35: migrateV35toV36,
 	36: migrateV36toV37,
+	37: migrateV37toV38,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1291,6 +1302,14 @@ func migrateV35toV36(in map[string]any) (map[string]any, error) {
 // so an absent `burned` on any pre-v37 inventory entry reads as "not burned",
 // exactly a fake nobody has scanned. Nothing to backfill.
 func migrateV36toV37(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV37toV38 introduces Save.Heat + Save.WantedLevel (security-response.md §7
+// v2 — persisted security heat). A no-op: both are additive ints with a safe zero
+// value, so an absent `heat` / `wanted_level` on any pre-v38 save reads as a cold,
+// unwatched character — the tracker's default. Nothing to backfill.
+func migrateV37toV38(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

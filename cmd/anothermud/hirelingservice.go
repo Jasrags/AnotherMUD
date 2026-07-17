@@ -169,6 +169,21 @@ func responsiblePlayer(store *entities.Store, killerID string) (pid string, viaH
 	return "", false
 }
 
+// isLawfulVictim reports whether a slain mob's tags mark it as law enforcement or
+// a civilian — a "murder" the security heat engine weights at full (security-
+// response.md §2 v2). Corp-sec / Knight Errant carry `security`/`law`; peaceful
+// non-combatants can be tagged `civilian`. A hostile (a ganger) carries none of
+// these and counts as lesser violence.
+func isLawfulVictim(tags []string) bool {
+	for _, t := range tags {
+		switch strings.ToLower(strings.TrimSpace(t)) {
+		case "law", "security", "civilian":
+			return true
+		}
+	}
+	return false
+}
+
 // hirelingOwnerOf maps a combatant id to the owner player id of the hireling it
 // names, or "" when the id is not an owned hireling (hireable-mobs.md §6.3/§6.4).
 // Used by the corpse owner-set + kill-XP hooks to credit a hireling's kill to its

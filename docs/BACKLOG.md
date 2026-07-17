@@ -680,19 +680,20 @@ None block content authoring. Sizes: **S/M/L**.
   response" below), the **active/broadcast-SIN** model (choose which fake to present),
   **directional/exit-level** checkpoints, **sell-side legality**, **Lifestyle upkeep**, and
   **contraband-on-movement / fast-travel** gating.
-- **Security zones as active response** — **✅ v1 SHIPPED (2026-07-16, `security-response.md`).**
+- **Security zones as active response** — **✅ v1 + v2 SHIPPED (2026-07-16, `security-response.md`).**
   The **consequence engine**: a player kill in a policed zone (its AREA's `security` tier AAA→Z)
   raises per-player **heat**; crossing the tier threshold schedules a **timed patrol response**
   (fast/many downtown, none in Z) that spawns Knight-Errant responders (`internal/security`
   HeatTracker) and **grudge-hunts the offender** via `SetRetaliation` — the offender's current
   room if they carry a valid SIN, the crime scene if SINless (the "invisible to law" tie-in,
   `security-response.md` §4). Reuses the tick scheduler + `spawnMob` + the ranged-`shoot`
-  retaliation pursuit; runtime-only (no save bump). **Deferred (`security-response.md` §7):**
-  **non-kill crimes** (provoke/theft, and the tightest — a **burned SIN at a scan** as a heat
-  source), **lawful-victim discrimination** (self-defence should be free — needs a victim tag),
-  **escalation waves / a wanted level**, **heat persistence**, and **de-escalation** (bribery /
-  a Lone Star contact). The v1-that-was-planned as "zone tunes patrol density (pure content)" was
-  skipped in favour of shipping the active heat→response loop directly.
+  retaliation pursuit. **v2 (`security-response.md` §8) added:** crime kinds (lawful/civilian
+  victim = murder full heat, ganger = violence fraction, a **burned SIN at a scan** = a crime —
+  the tightest SIN↔heat tie), a **wanted level** with capped escalation waves, the `wanted` +
+  `bribe` **de-escalation** verbs, and **heat persistence** (save **v38**). **Still deferred
+  (`security-response.md` §9):** a full **self-defence exemption** (v2 weights a ganger kill
+  down but doesn't zero it), more **non-kill crimes** (provoke/theft), **offline heat decay**,
+  and a **faction/Lone-Star** de-escalation alternative to the cash bribe.
 - **Cyberware / Bioware + Essence** — **✅ CORE SHIPPED (SR-M4, 2026-07-13).** Augments as
   **implants** occupying a `cyberware` slot grant modifiers through the standard
   equip→srckey→stat pipeline (SR-M3), and **Essence is now a real bounded budget** that each

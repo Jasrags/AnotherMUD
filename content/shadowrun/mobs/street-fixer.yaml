@@ -7,7 +7,7 @@ description: |
   gear and pricing it before you've said a word. She keeps the basics a fresh
   runner burns through — ammo, a sidearm, a jacket to soak a round — nuyen up
   front, no receipts. `list` to see her stock, `buy <item>` to deal.
-tags: [humanoid, shop]
+tags: [humanoid, shop, fixer]
 keywords: [fixer, dealer, shopkeeper, woman]
 # A fixer, not a mark — friendly to everyone; nobody robs the person who sells
 # them ammo.

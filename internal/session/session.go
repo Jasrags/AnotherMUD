@@ -515,6 +515,11 @@ type Config struct {
 	// nil-safe: the verbs report "no shop here" when unwired.
 	Shop *economy.ShopService
 
+	// Security is the heat engine surface (security-response.md §7 v2), flowed
+	// into command.Env so the `wanted` / `bribe` verbs and the burn-crime hook can
+	// reach it. nil when the world has no security zones.
+	Security command.SecurityService
+
 	// Sustenance is the M11.3 sustenance service (spec §4). Used at
 	// login to seed a fresh character's pool to full and by the
 	// sustenance-drain world-tick subscriber (via Manager.DrainSustenance).
@@ -779,6 +784,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		slots:         cfg.Slots,
 		faction:       cfg.Faction,
 		reputation:    cfg.Reputation,
+		security:      cfg.Security,
 		prof:          cfg.Proficiency,
 		hideSkill:     hideSkill,
 		sneakSkill:    sneakSkill,
@@ -934,6 +940,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// Tier re-enters a.mu via Renown/SetTierTag). Absent on a pre-v32 save → 0
 	// (Unknown), the correct default.
 	a.renown = loaded.Player.Reputation
+	// security-response.md §7 v2: re-seed the heat engine from the persisted heat +
+	// wanted level so a relog doesn't launder the law's attention. No-op when the
+	// world has no security zones (a.security nil) or the character is cold (zeros).
+	if a.security != nil {
+		a.security.Seed(a.playerID, loaded.Player.Heat, loaded.Player.WantedLevel)
+	}
 	// M11.1: restore persisted gold balance (spec §2.1). No manager
 	// involvement at login — gold has no bucket/tag derivation like
 	// alignment; the raw integer is the whole state.
@@ -2366,6 +2378,10 @@ type connActor struct {
 	// future consumers (a score line, the recognition check, a disposition
 	// reaction) can resolve renown/tier through it. nil when unwired.
 	reputation *reputation.Manager
+	// security is the heat engine (security-response.md §7 v2), held so Persist can
+	// snapshot the actor's live heat + wanted level into the save and login can
+	// re-seed it. nil in a world with no security zones. Guarded by a.mu at use.
+	security command.SecurityService
 	// renown is the actor's single renown score (reputation.md §10): fame +,
 	// infamy −, Unknown 0. Restored from save.Reputation on login, written
 	// through SetRenown (which mirrors into the save). Guarded by a.mu.
@@ -3425,6 +3441,9 @@ func (a *connActor) Persist(ctx context.Context) error {
 	if a.syncPoolsToSaveLocked() {
 		a.markDirtyLocked()
 	}
+	if a.syncHeatToSaveLocked() {
+		a.markDirtyLocked()
+	}
 	if a.syncAbilitiesToSaveLocked() {
 		a.markDirtyLocked()
 	}
@@ -3543,6 +3562,25 @@ func (a *connActor) syncVitalsToSaveLocked() bool {
 // is deadlock-free because the only goroutine touching pools concurrently
 // (the regen tick via regenPool, the prompt via resourceSnapshot) acquires
 // pool.Set.mu WITHOUT ever holding a.mu — so the two never form a cycle.
+// syncHeatToSaveLocked pulls the actor's live security heat + wanted level into
+// the save (security-response.md §7 v2), mirroring syncPoolsToSaveLocked: heat
+// changes on the crime/decay path never go through markDirtyLocked, so Persist
+// snapshots them here. Returns true when the save changed. Caller holds a.mu; the
+// Status read takes the tracker's own lock (a.mu → tracker.mu; the reverse never
+// occurs while the tracker lock is held, so there is no cycle).
+func (a *connActor) syncHeatToSaveLocked() bool {
+	if a.security == nil || a.save == nil || a.playerID == "" {
+		return false
+	}
+	heat, wanted := a.security.Status(a.playerID)
+	if a.save.Heat == heat && a.save.WantedLevel == wanted {
+		return false
+	}
+	a.save.Heat = heat
+	a.save.WantedLevel = wanted
+	return true
+}
+
 func (a *connActor) syncPoolsToSaveLocked() bool {
 	if a.save == nil || a.pools == nil {
 		return false

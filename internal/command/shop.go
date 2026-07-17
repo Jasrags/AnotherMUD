@@ -48,6 +48,7 @@ func BuyHandler(ctx context.Context, c *Context) error {
 		// write). Persist that by re-syncing the inventory tree + flipping the
 		// save dirty bit, so the burn survives a relog (sin-and-legality.md §7).
 		c.Actor.MarkContentsDirty()
+		reportBurnCrime(ctx, c) // getting caught with a fake is a crime (heat, §7 v2)
 		return c.Actor.Write(ctx, fmt.Sprintf("The counter scanner flags %s as forged — it locks the record and voids the credential. %s is burned; the sale is refused.", res.ItemName, capitalize(res.BurnedCredential)))
 	default:
 		return c.Actor.Write(ctx, "The shop doesn't sell that.")

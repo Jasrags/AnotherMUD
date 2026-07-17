@@ -8,7 +8,7 @@ description: |
   heat lamp, a wall of NutriSoy in forty flavors, the same forty in every Shack
   on Earth — legal, cheap, and open around the clock. The register never closes,
   and by the look of him neither does his shift.
-tags: [humanoid, shop]
+tags: [humanoid, shop, civilian]
 keywords: [clerk, wageslave, stuffer, shack, cashier]
 # A retail service NPC — friendly to everyone.
 disposition_rules:

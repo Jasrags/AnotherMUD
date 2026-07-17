@@ -66,6 +66,7 @@ func commandEnv(cfg Config) command.Env {
 		Trades:                cfg.Trades,
 		Auction:               cfg.Auction,
 		Shop:                  cfg.Shop,
+		Security:              cfg.Security,
 		Rest:                  cfg.Rest,
 		Consumable:            cfg.Consumable,
 		Notifications:         cfg.Notifications,

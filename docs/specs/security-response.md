@@ -1,8 +1,11 @@
 # Security Response (Heat)
 
 > **Layer:** Action/interaction — a consequence engine over combat + the `security` zone property.
-> **Status:** v1 (this doc) — crime → heat → a timed patrol response that hunts the offender.
-> Escalation waves, non-kill crimes, and heat persistence stay deferred; see §7.
+> **Status:** v1 — crime → heat → a timed patrol response that hunts the offender.
+> **v2 (§8) SHIPPED** — crime kinds (lawful-victim weighting + a burned SIN as a crime), a
+> **wanted level** with escalation waves, **de-escalation** (`wanted` / `bribe`), and heat
+> **persistence** (save v38). Lawful-victim-tag exemption of self-defence and offline decay stay
+> deferred; see §9.
 >
 > **Companion:** [sin-and-legality](sin-and-legality.md). That spec's §7.1 gates *access* by
 > identity; this one gates *pursuit* by conduct. Together they are "the law reacts to you": a
@@ -126,6 +129,10 @@ On firing, the offender's heat is spent (reset), so a fresh crime spree must re-
 | decay per sweep | env | tuned | How fast heat cools. |
 | sweep cadence | env | tuned | How often decay + response-fire run. |
 | master enable | env | on | A kill-switch for the whole system. |
+| crime-kind weights | config | violence 0.25, burn 0.5 (murder 1.0) | Per-kind multiplier on the tier base (§8). |
+| responder cap | config | 6 | Max size of an escalated wave (§8). |
+| wanted decay | config | 30 sweeps | Sweeps a cooled offender's wanted level takes to drop one (§8). |
+| bribe price | config | base 100 + 15/heat + 500/wanted | Nuyen a fixer charges to bury a record (§8). |
 
 Indicative tier policy (tuned in config; the shape, not the numbers, is normative):
 
@@ -150,17 +157,33 @@ No save-version bump — heat and pending responses are runtime only.
 - The grudge is single-target and single-room per mob (the existing retaliation limit); a
   response therefore hunts one offender. Multi-offender / multi-room pursuit is out of scope.
 
-## 7. Open questions / deferred
+## 8. v2 additions (shipped)
 
-- **Non-kill crimes.** Provoking a neutral mob to hostility (`mob.aggro`), opening combat
-  (`OnEngagement`), theft, and a **burned SIN at a scan** (`sin-and-legality` §7) as heat
-  sources. The burned-SIN link is the tightest: getting caught with a fake *is* a crime.
-- **Lawful-victim discrimination.** Heat only for killing a `lawful` / `civilian`-tagged mob, so
-  self-defense against a ganger is free. Needs a victim tag.
-- **Escalation.** Sustained or climbing heat bringing successive, larger waves; a "wanted level".
-- **Alternative SIN models** (from `sin-and-legality` §8, deferred there too): (a) **SINless
-  draws more heat, no lasting record** — an unknown reads as a runner (faster reaction) but
-  leaves nothing to track; (b) **no identity interaction** — heat/response purely zone-driven.
-  v1 ships the **evade-the-hunt** model (§4); these two are the documented alternatives.
-- **Heat persistence** across relog / restart (a save field + decay-while-offline).
-- **De-escalation verbs / bribery / faction pull** — paying off heat, a Lone Star contact.
+- **Crime kinds (§2 generalized).** `OnKill` became `OnCrime(kind)`. Heat = the tier base ×
+  a per-kind weight: **murder** (a lawful/civilian victim — a mob tagged `law` / `security` /
+  `civilian`) = full; **violence** (a hostile/ganger kill) = a fraction; **burn** (a fake SIN
+  caught at a scan) = a fraction. So killing a cop downtown brings the law hard, a ganger barely.
+- **Burned SIN as a crime.** A `sin-and-legality` §7/§7.1 scan that burns a fake now feeds
+  `OnCrime(burn)` — the tightest tie between the identity and heat systems: getting caught with
+  a fake *is* a crime.
+- **Wanted level + escalation.** Each response an offender provokes raises a per-player **wanted
+  level**; the next wave grows with it (bounded by a responder cap). The level fades slowly once
+  the offender has cooled off (no heat, no pending response).
+- **De-escalation.** `wanted` (alias `heat`) shows the offender their heat band + wanted level;
+  `bribe <fixer>` pays nuyen (scaled by heat + wanted) to a `fixer`-tagged mob to wipe heat and
+  ease the wanted level.
+- **Persistence (save v38).** `Save.Heat` + `Save.WantedLevel` snapshot the live tracker in
+  `Persist` and re-seed it at login, so a relog no longer launders the law's attention.
+
+## 9. Open questions / deferred
+
+- **Lawful-victim exemption of self-defence.** v2 *weights* by victim (a ganger kill is lesser
+  violence) but still charges some heat. A stricter model makes self-defence against a hostile
+  entirely free; the `mob.aggro`-provoked-me distinction it needs is unbuilt.
+- **More non-kill crimes.** Provoking hostility (`mob.aggro`), opening combat (`OnEngagement`),
+  and theft as heat sources — v2 shipped only the burned-SIN non-kill crime.
+- **Offline decay.** Persisted heat resumes at its logged-out value and decays live; it does not
+  decay while offline (would need a persisted wall-clock stamp).
+- **Alternative SIN models** (from `sin-and-legality` §8): SINless-draws-more-heat, or no
+  identity interaction. v1/v2 ship the **evade-the-hunt** model (§4).
+- **Faction pull / Lone Star contact** as an alternative de-escalation to a cash bribe.
