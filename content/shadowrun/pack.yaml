@@ -43,6 +43,14 @@ currency:
 # `sneak` verbs' checks AND their use-gain) through the single `sneaking` skill,
 # so a runner has one Stealth skill instead of the two-axis fantasy default.
 stealth_skill: sneaking
+# Advancement strategy (SR-M5): the Sixth World is level-less. Kills and quests
+# bank spendable KARMA (not track XP), and a runner raises skills/attributes/
+# qualities à la carte via `improve` at cost = new-rating × multiplier. This
+# routes every advancement reward into the karma ledger instead of onto the
+# `street` bound_track; the Street Samurai class kit is now a creation package
+# only (its bound_track never accrues, so power-attack@2 is unreachable by
+# leveling — it becomes a karma purchase). Canon-faithful SR5 progression.
+advancement: karma-ledger
 content:
   # The eight primaries (Body/Agility/Reaction/Strength/Willpower/Logic/
   # Intuition/Charisma) plus Edge (SR-M1). The loader enumerates by this glob,

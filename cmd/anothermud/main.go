@@ -3574,6 +3574,7 @@ func run() error {
 		AttributeSets:         registries.AttributeSets,
 		WorldAttributeSets:    registries.WorldAttributeSets,
 		WorldStealthSkills:    registries.WorldStealthSkills,
+		WorldAdvancement:      registries.WorldAdvancement,
 		Pools:                 registries.Pools,
 		Alignment:             alignmentMgr,
 		Faction:               factionMgr,

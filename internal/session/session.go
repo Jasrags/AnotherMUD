@@ -46,10 +46,12 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/karma"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
+	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -232,6 +234,13 @@ type Config struct {
 	// a missing registry falls back to progression.DefaultPlayerBase.
 	AttributeSets      *progression.AttributeSetRegistry
 	WorldAttributeSets map[string]string
+
+	// WorldAdvancement maps a world namespace → its advancement strategy
+	// (pack.AdvancementKarmaLedger for a karma-ledger world; absent → the
+	// default level-track). Held so the actor constructor resolves ITS WORLD'S
+	// strategy at login: a karma-ledger character gets a karma.Ledger and routes
+	// kill/quest rewards into it instead of onto a progression track (SR-M5).
+	WorldAdvancement map[string]string
 
 	// WorldStealthSkills maps a world namespace → the single skill id both
 	// concealment axes read for that world (skills §2 — SR's `sneaking` merging
@@ -648,6 +657,22 @@ func resolveAttributeSet(sets *progression.AttributeSetRegistry, selection map[s
 	return set
 }
 
+// newAdvancementLedger returns a fresh karma.Ledger when the character's world
+// selects the karma-ledger advancement strategy (SR-M5), or nil for the default
+// level-track world. The nil result is the signal used everywhere downstream:
+// a nil ledger means "this character advances on tracks/levels, not karma".
+// Pure + nil-safe — an absent selection or unlisted world yields nil, so every
+// existing (level-track) world is unchanged.
+func newAdvancementLedger(selection map[string]string, worldID string) *karma.Ledger {
+	if selection == nil {
+		return nil
+	}
+	if selection[worldID] == pack.AdvancementKarmaLedger {
+		return karma.NewLedger()
+	}
+	return nil
+}
+
 // resolveStealthSkills resolves the two skill ability ids the concealment
 // consumers read for a character's world (skills §2). A world that declares a
 // manifest `stealth_skill:` (SR: `sneaking`) merges D&D's two stealth skills
@@ -785,6 +810,9 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		faction:       cfg.Faction,
 		reputation:    cfg.Reputation,
 		security:      cfg.Security,
+		// SR-M5: a karma-ledger world gives the character a spendable ledger
+		// (nil for the default level-track world). Restored from save below.
+		karma:         newAdvancementLedger(cfg.WorldAdvancement, loaded.Player.WorldID),
 		prof:          cfg.Proficiency,
 		hideSkill:     hideSkill,
 		sneakSkill:    sneakSkill,
@@ -945,6 +973,13 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// world has no security zones (a.security nil) or the character is cold (zeros).
 	if a.security != nil {
 		a.security.Seed(a.playerID, loaded.Player.Heat, loaded.Player.WantedLevel)
+	}
+	// SR-M5: restore the karma balance for a karma-ledger character. The ledger
+	// is non-nil only when this world uses karma-ledger; a persisted `karma`
+	// block from a level-track save (there won't be one) is ignored. The ledger
+	// has its own lock, so this is safe outside a.mu.
+	if a.karma != nil && loaded.Player.Karma != nil {
+		a.karma.Restore(*loaded.Player.Karma)
 	}
 	// M11.1: restore persisted gold balance (spec §2.1). No manager
 	// involvement at login — gold has no bucket/tag derivation like
@@ -2382,6 +2417,12 @@ type connActor struct {
 	// snapshot the actor's live heat + wanted level into the save and login can
 	// re-seed it. nil in a world with no security zones. Guarded by a.mu at use.
 	security command.SecurityService
+	// karma is the spendable-advancement ledger (SR-M5). Non-nil ONLY for a
+	// character in a karma-ledger world; nil is the signal that this character
+	// advances on tracks/levels (the default). When non-nil, kill/quest rewards
+	// bank karma here instead of onto a track, and `improve` spends from it. The
+	// ledger carries its own lock, so it is read/written without a.mu.
+	karma *karma.Ledger
 	// renown is the actor's single renown score (reputation.md §10): fame +,
 	// infamy −, Unknown 0. Restored from save.Reputation on login, written
 	// through SetRenown (which mirrors into the save). Guarded by a.mu.
@@ -3444,6 +3485,9 @@ func (a *connActor) Persist(ctx context.Context) error {
 	if a.syncHeatToSaveLocked() {
 		a.markDirtyLocked()
 	}
+	if a.syncKarmaToSaveLocked() {
+		a.markDirtyLocked()
+	}
 	if a.syncAbilitiesToSaveLocked() {
 		a.markDirtyLocked()
 	}
@@ -3578,6 +3622,33 @@ func (a *connActor) syncHeatToSaveLocked() bool {
 	}
 	a.save.Heat = heat
 	a.save.WantedLevel = wanted
+	return true
+}
+
+// syncKarmaToSaveLocked pulls the actor's live karma balance into the save
+// (SR-M5), mirroring syncHeatToSaveLocked: a karma grant on the combat/quest
+// path or a spend via `improve` never goes through markDirtyLocked, so Persist
+// snapshots it here. No-op for a level-track character (nil ledger) — the save's
+// Karma block stays nil, so a fantasy save never grows a `karma:` key. Returns
+// true when the save changed. Caller holds a.mu; the ledger takes its own lock
+// (a.mu → ledger.mu; the reverse never occurs, so there is no cycle).
+func (a *connActor) syncKarmaToSaveLocked() bool {
+	if a.karma == nil || a.save == nil {
+		return false
+	}
+	snap := a.karma.Snapshot()
+	// A fresh karma-ledger runner who has earned nothing writes NO `karma:` block
+	// — kept clean like a full pool is omitted (Total only ever rises, so a zero
+	// snapshot means "never earned", never "earned then spent to zero"). Only a
+	// non-zero ledger, or a change from a previously-persisted block, is written.
+	if a.save.Karma == nil {
+		if snap == (karma.Snapshot{}) {
+			return false
+		}
+	} else if *a.save.Karma == snap {
+		return false
+	}
+	a.save.Karma = &snap
 	return true
 }
 

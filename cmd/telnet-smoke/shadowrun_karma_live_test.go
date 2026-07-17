@@ -13,28 +13,26 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/telnettest"
 )
 
-// TestLive_ShadowrunKarmaAdvance closes the last combat-adjacent SR-M3 gate
-// (acceptance [100]): advancement runs on the existing engine as karma-as-XP
-// (pinned decision D3, Option A) — a kill grants karma on the Shadowrun world
-// track, and accumulating it advances the track a level. It proves the SR pack
-// composes with the generic progression engine end to end:
+// TestLive_ShadowrunKarmaAdvance proves the Shadowrun world advances on the
+// karma-ledger strategy (SR-M5, Decision D3 Option B), NOT the level-track
+// engine: the pack's manifest `advancement: karma-ledger` routes every earned
+// reward into a spendable karma balance instead of onto a progression track, so
+// a Sixth-World runner is level-less. It exercises the SR pack end to end:
 //
-//   - a Street Samurai's class binds the shadowrun `street` track ("The Long
-//     Run"), shown on `score`;
+//   - a fresh Street Samurai's `score` shows a "Karma" line (0 spendable /
+//     0 earned) and NO "Level N" line — the level/track block is suppressed for
+//     a karma-ledger character;
 //
-//   - killing a street ganger (xp_value 30) awards the full 30 to the solo
-//     killer via the grouping kill-XP seam ("You gain 30 experience.");
+//   - killing a street ganger (xp_value 30) banks karma via the grouping
+//     kill-reward seam ("You gain 30 karma." — not "experience");
 //
-//   - crossing the track's level-2 threshold (100 XP on street.yaml's curve)
-//     advances the character to Level 2 on that track.
+//   - the score's karma balance rises by the ganger's 30 (both spendable and
+//     lifetime-earned), and the character never leveled.
 //
 //     ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_ShadowrunKarmaAdvance -v
 //
 // Deterministic: the runner is Strength-buffed (SR damage) + `restore`d each
-// round so it always wins without dying; the kill supplies the earn signal, and
-// an admin `xp` top-up fast-forwards the accumulation to the level threshold
-// (the *earn from a kill* is already proven above — this half proves the SR
-// track LEVELS, a generic mechanic exercised here on the SR track specifically).
+// round so it always wins without dying; the kill supplies the earn signal.
 func TestLive_ShadowrunKarmaAdvance(t *testing.T) {
 	if os.Getenv("ANOTHERMUD_LIVE") == "" {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
@@ -49,13 +47,10 @@ func TestLive_ShadowrunKarmaAdvance(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer c.Close()
-	// The DEFAULT wizard flow now yields a Street Samurai — the [94] fix.
-	// world-scoped class/background menus mean the shadowrun world offers only
-	// its own `street-samurai`/`street-kid` (tapestry-core's `fighter`/`commoner`
-	// no longer leak in), so createAndLogin's first-option picks build a real
-	// Street Samurai on "The Long Run". If the world-scoping regresses, core
-	// `fighter` returns as the default and the "The Long Run" assertion below
-	// fails — the guard.
+	// The DEFAULT wizard flow yields a Street Samurai — world-scoped class/
+	// background menus mean the shadowrun world offers only its own
+	// `street-samurai`/`street-kid` (tapestry-core's fighter/commoner no longer
+	// leak in), so createAndLogin's first-option picks build a real Street Samurai.
 	if err := createAndLogin(c, "Runner"); err != nil {
 		t.Fatalf("create+login: %v", err)
 	}
@@ -71,58 +66,44 @@ func TestLive_ShadowrunKarmaAdvance(t *testing.T) {
 		}
 		return out
 	}
-	levelRe := regexp.MustCompile(`(?i)Level (\d+)`)
-	scoreLevel := func(sheet string) int {
+
+	// "Karma   <current> (<total> earned)" — grab the spendable balance.
+	karmaRe := regexp.MustCompile(`(?i)Karma\s+([\d,]+)`)
+	scoreKarma := func(sheet string) int {
 		t.Helper()
-		m := levelRe.FindStringSubmatch(sheet)
+		m := karmaRe.FindStringSubmatch(sheet)
 		if m == nil {
-			t.Fatalf("no \"Level N\" on the score sheet:\n%s", sheet)
+			t.Fatalf("no \"Karma N\" on the score sheet (karma-ledger line missing):\n%s", sheet)
 		}
 		n, err := strconv.Atoi(m[1])
 		if err != nil {
-			t.Fatalf("parse level from %q: %v", m[1], err)
+			t.Fatalf("parse karma from %q: %v", m[1], err)
 		}
 		return n
 	}
+	levelRe := regexp.MustCompile(`(?i)Level \d+`)
 
-	xpRe := regexp.MustCompile(`(?i)XP\s+([\d,]+)`)
-	scoreXP := func(sheet string) int {
-		t.Helper()
-		m := xpRe.FindStringSubmatch(sheet)
-		if m == nil {
-			t.Fatalf("no \"XP N\" on the score sheet:\n%s", sheet)
-		}
-		n, err := strconv.Atoi(strings.ReplaceAll(m[1], ",", ""))
-		if err != nil {
-			t.Fatalf("parse XP from %q: %v", m[1], err)
-		}
-		return n
-	}
-
-	// Starting state: a fresh Street Samurai's HEADLINE track is the SR world
-	// track (its class bound_track), Level 1 / 0 XP — not core's "adventurer".
+	// Starting state: a fresh karma-ledger runner shows a Karma line, no Level.
 	sheet := send("score")
-	if !strings.Contains(sheet, "The Long Run") {
-		t.Fatalf("score headline track is not the Shadowrun \"The Long Run\" — the primary-track (class bound_track) resolution regressed:\n%s", sheet)
+	if levelRe.MatchString(sheet) {
+		t.Fatalf("a karma-ledger Street Samurai should be level-less, but score shows a Level line:\n%s", sheet)
 	}
-	if start := scoreLevel(sheet); start != 1 {
-		t.Fatalf("fresh Street Samurai started at Level %d, want 1", start)
+	if start := scoreKarma(sheet); start != 0 {
+		t.Fatalf("fresh runner started with %d karma, want 0", start)
 	}
-	startXP := scoreXP(sheet)
 
-	// Gear + Strength buff for a survivable, XP-clean fight (no admin xp yet, so
-	// the kill's award is the only XP on the board when we assert the earn line).
+	// Gear + Strength buff for a survivable, karma-clean fight.
 	send("set stat strength Runner 6")
 	send("restore")
-	if out := send("get katana"); strings.Contains(strings.ToLower(out), "don't see") {
+	if out := send("get katana"); regexp.MustCompile(`(?i)don't see`).MatchString(out) {
 		t.Fatalf("could not get the katana:\n%s", out)
 	}
 	send("equip katana wield")
 	send("teleport shadowrun:market-street")
 
-	// Kill the ganger → the earn signal proves an SR-mob kill grants karma on the
-	// SR track (the grouping kill-XP seam awarding xp_value 30 to a party of one).
-	gainRe := regexp.MustCompile(`You gain 30 experience\.`)
+	// Kill the ganger → the earn signal proves an SR-mob kill banks KARMA (not
+	// XP) via the grouping kill-reward seam awarding xp_value 30 to a party of one.
+	gainRe := regexp.MustCompile(`You gain 30 karma\.`)
 	deadline := time.Now().Add(120 * time.Second)
 	var acc strings.Builder
 	for time.Now().Before(deadline) {
@@ -133,24 +114,17 @@ func TestLive_ShadowrunKarmaAdvance(t *testing.T) {
 		}
 	}
 	if !gainRe.MatchString(acc.String()) {
-		t.Fatalf("kill did not grant 30 karma/XP on the SR track (grouping kill-XP → street.yaml):\n%s", acc.String())
+		t.Fatalf("kill did not bank 30 karma (grouping kill-reward → karma-ledger routing):\n%s", acc.String())
 	}
 
-	// The kill's karma landed on the SR track specifically: the headline (street)
-	// XP rose by the ganger's 30 — proof the kill-XP routes to the killer's class
-	// bound_track, not the engine-default "adventurer".
-	if got := scoreXP(send("score")); got != startXP+30 {
-		t.Fatalf("kill karma did not land on The Long Run: street XP %d, want %d (start %d + 30 from the ganger)", got, startXP+30, startXP)
-	}
-
-	// A track advances: top the street track past street.yaml's level-2 threshold
-	// (100 XP; the kill already banked 30) and confirm The Long Run leveled to 2.
-	// The track must be named explicitly — the admin `xp` verb defaults to the
-	// engine track, which is the whole bug this test guards against.
-	send("xp 100 street")
+	// The kill's karma landed in the ledger: the score's spendable balance rose
+	// by the ganger's 30, and the runner still never leveled.
 	after := send("score")
-	if lvl := scoreLevel(after); lvl != 2 {
-		t.Fatalf("SR track did not advance: Level %d after crossing the 100-XP threshold, want 2:\n%s", lvl, after)
+	if got := scoreKarma(after); got != 30 {
+		t.Fatalf("kill karma did not land in the ledger: karma %d, want 30:\n%s", got, after)
 	}
-	t.Log("shadowrun verified live: ganger kill banked 30 karma on The Long Run (its class bound_track); crossing 100 XP advanced the track to Level 2")
+	if levelRe.MatchString(after) {
+		t.Fatalf("runner leveled on a karma-ledger world (should be impossible):\n%s", after)
+	}
+	t.Log("shadowrun verified live: a level-less Street Samurai banked 30 karma from a ganger kill into the spendable ledger")
 }

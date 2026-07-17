@@ -161,6 +161,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	dst.Splashes = make(map[string]string)
 	dst.WorldAttributeSets = make(map[string]string)
 	dst.WorldStealthSkills = make(map[string]string)
+	dst.WorldAdvancement = make(map[string]string)
 	dst.WorldCurrencies = make(map[string]economy.CurrencyLabel)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
@@ -206,6 +207,22 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 					Noun:   strings.TrimSpace(cm.Name),
 					Suffix: cm.Suffix,
 				}
+			}
+			// Record the world's advancement strategy (SR-M5). Empty / the
+			// default token → omitted, so the world uses the level-track model.
+			// A typo (an unknown strategy) is a hard load error here rather than
+			// a silent fall-through to level-track — an author who wrote
+			// `advancement: karma_ledger` must find out at boot, not by watching
+			// XP accrue where they expected karma.
+			switch adv := strings.ToLower(strings.TrimSpace(p.Manifest.Advancement)); adv {
+			case "", AdvancementLevelTrack:
+				// default — level-track; leave the world out of the map.
+			case AdvancementKarmaLedger:
+				dst.WorldAdvancement[p.Namespace()] = adv
+			default:
+				return fmt.Errorf("%w: pack %q: advancement %q is not valid (expected %q or %q)",
+					ErrInvalidContent, p.Manifest.Name, p.Manifest.Advancement,
+					AdvancementLevelTrack, AdvancementKarmaLedger)
 			}
 		}
 	}

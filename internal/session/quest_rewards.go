@@ -206,6 +206,13 @@ func (q questXP) GrantExperience(entityID string, amount int64, track, source st
 	if !ok {
 		return
 	}
+	// SR-M5: a karma-ledger character banks the quest's advancement reward as
+	// spendable karma rather than track XP. The quest completion message is the
+	// player's feedback (as with the XP path), so nothing is written here.
+	if a.UsesKarmaLedger() {
+		a.GrantKarma(context.Background(), source, amount)
+		return
+	}
 	// quest.ExperienceGranter has no ctx, so XP-grant logging loses the
 	// session-scoped fields and the GrantResult (level-up message) is
 	// discarded — the level-up still fires on the bus, and the quest

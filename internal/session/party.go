@@ -405,6 +405,14 @@ func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, fa
 		return
 	}
 	for _, a := range recipients {
+		// SR-M5: a karma-ledger recipient banks spendable karma instead of track
+		// XP — no level-up, no track resolution. The share is identical (kill
+		// reward tuning is world content, not strategy).
+		if a.UsesKarmaLedger() {
+			a.GrantKarma(ctx, "kill", share)
+			_ = a.Write(ctx, fmt.Sprintf("You gain %d karma.", share))
+			continue
+		}
 		res := a.GrantXP(ctx, prog, a.PrimaryTrack(fallbackTrack), "kill", share)
 		if res.TrackUnknown {
 			// The recipient's primary track isn't registered — a class

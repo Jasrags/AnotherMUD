@@ -196,6 +196,17 @@ type Registries struct {
 	// loaded-pack metadata, like WorldAttributeSets.
 	WorldStealthSkills map[string]string
 
+	// WorldAdvancement maps a world pack's namespace → its advancement strategy
+	// (its manifest `advancement:`), for world packs that select the karma-ledger
+	// model (shadowrun-mvp.md SR-M5). A world absent from this map (the common
+	// case) uses the default `level-track` strategy — rewards bank track XP and
+	// level up. A world present with `karma-ledger` routes rewards into a
+	// spendable karma balance instead. Populated by Load (the value is validated
+	// there, so only a known strategy reaches this map); the composition root
+	// threads it into session.Config so the actor resolves its world's strategy
+	// at login. Not a content registry — loaded-pack metadata, like Worlds.
+	WorldAdvancement map[string]string
+
 	// Splashes maps a world pack's namespace → its connect splash text
 	// (the raw file contents with engine color markup, not yet rendered).
 	// Populated by Load for every kind:world pack (required, validated);
@@ -257,6 +268,7 @@ func NewRegistries() *Registries {
 		Worlds:             []string{},
 		WorldAttributeSets: map[string]string{},
 		WorldStealthSkills: map[string]string{},
+		WorldAdvancement:   map[string]string{},
 		Splashes:           map[string]string{},
 		WorldCurrencies:    map[string]economy.CurrencyLabel{},
 	}

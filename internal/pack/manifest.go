@@ -19,6 +19,17 @@ import (
 // are visible to all packs without a qualifier.
 const EngineNamespace = "tapestry-core"
 
+// Advancement strategy tokens for the manifest `advancement:` field
+// (shadowrun-mvp.md SR-M5). See Manifest.Advancement.
+const (
+	// AdvancementLevelTrack is the default: rewards bank XP onto the class
+	// bound_track and level up. Also the value an empty `advancement:` means.
+	AdvancementLevelTrack = "level-track"
+	// AdvancementKarmaLedger routes rewards into a spendable karma balance;
+	// the player raises skills/attributes/qualities via `improve` (no levels).
+	AdvancementKarmaLedger = "karma-ledger"
+)
+
 // ManifestFilenames are the filenames the loader recognizes as manifests,
 // in lookup order (spec §2.4 acceptance criteria).
 var ManifestFilenames = []string{"pack.yaml", "tapestry.yaml"}
@@ -108,6 +119,21 @@ type Manifest struct {
 	// through that one proficiency. Behavior-only, not a save field — change it
 	// freely.
 	StealthSkill string `yaml:"stealth_skill,omitempty"`
+
+	// Advancement selects this world's advancement STRATEGY (shadowrun-mvp.md
+	// SR-M5, Decision D3): how earned rewards (kills, quests) turn into character
+	// growth. Only meaningful on kind:world packs. Two values:
+	//   - "" / "level-track" (default): rewards bank XP onto the character's
+	//     class bound_track; crossing a threshold levels up and the class grants
+	//     stat growth + abilities. The engine's original model (WoT/core).
+	//   - "karma-ledger": rewards bank spendable KARMA (no track XP, no levels);
+	//     the player raises skills/attributes/qualities à la carte via `improve`.
+	//     Canon-faithful Shadowrun (level-less). A karma-ledger world's classes
+	//     are a creation package only — their bound_track never accrues XP.
+	// Behavior/routing-only, NOT a save-shape field (a level-track character
+	// simply carries no karma block); change it freely. An unknown value is
+	// rejected at load so a typo can't silently fall back to level-track.
+	Advancement string `yaml:"advancement,omitempty"`
 
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future

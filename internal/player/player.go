@@ -23,6 +23,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/Jasrags/AnotherMUD/internal/karma"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/persistence"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
@@ -127,7 +128,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 38
+const CurrentVersion = 39
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -407,6 +408,17 @@ type Save struct {
 	// and decays live. Runtime-only history (matching faction/reputation).
 	Heat        int `yaml:"heat,omitempty"`
 	WantedLevel int `yaml:"wanted_level,omitempty"`
+
+	// Karma persists the karma-ledger advancement balance (shadowrun-mvp.md
+	// SR-M5, Decision D3 Option B) — Current (spendable) and Total (lifetime
+	// earned). Added in v39. Only ever written for a character in a
+	// karma-ledger world (the connActor holds a nil ledger otherwise, so
+	// Persist writes nothing); a level-track character has no karma block.
+	// Absent (a pre-v39 save, a level-track world, or an unspent brand-new
+	// runner) decodes to a nil pointer = no ledger, which is what the login
+	// path expects. Runtime spending goes through the karma.Ledger; this is
+	// the snapshot taken in Persist and re-seeded at login.
+	Karma *karma.Snapshot `yaml:"karma,omitempty"`
 
 	// Pools is the persisted current value of the actor's generalized
 	// resource pools — mana / movement today, the One Power tomorrow (WoT
@@ -811,6 +823,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	35: migrateV35toV36,
 	36: migrateV36toV37,
 	37: migrateV37toV38,
+	38: migrateV38toV39,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1310,6 +1323,15 @@ func migrateV36toV37(in map[string]any) (map[string]any, error) {
 // value, so an absent `heat` / `wanted_level` on any pre-v38 save reads as a cold,
 // unwatched character — the tracker's default. Nothing to backfill.
 func migrateV37toV38(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV38toV39 introduces Save.Karma (shadowrun-mvp.md SR-M5 — the karma-ledger
+// advancement balance). A no-op: the block is a nil-pointer with a safe zero value,
+// so an absent `karma` on any pre-v39 save reads as "no ledger" — which is exactly
+// the state of a level-track character, and of a brand-new karma-ledger runner who
+// has earned nothing yet. Nothing to backfill.
+func migrateV38toV39(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

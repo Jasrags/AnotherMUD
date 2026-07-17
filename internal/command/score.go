@@ -204,7 +204,21 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Languages = strings.Join(lh.KnownLanguages(), ", ")
 	}
 
-	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil {
+	// Karma-ledger advancement (SR-M5). Probed via an anonymous interface so the
+	// sheet stays decoupled from the session package; connActor satisfies it, a
+	// test fake that doesn't simply omits the line. A karma-ledger character is
+	// level-less, so this REPLACES the level/track block below (gated on
+	// !d.HasKarma) — showing a phantom "Level 1" for a runner who never levels
+	// would be a lie.
+	if kh, ok := c.Actor.(interface {
+		UsesKarmaLedger() bool
+		KarmaBalance() (int64, int64)
+	}); ok && kh.UsesKarmaLedger() {
+		d.HasKarma = true
+		d.KarmaCurrent, d.KarmaTotal = kh.KarmaBalance()
+	}
+
+	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil && !d.HasKarma {
 		// Primary track = the actor's class bound_track (its own world's
 		// advancement track), not the first-registered track — otherwise a
 		// world-locked character (an SR street-samurai, a WoT armsman) shows the
@@ -504,6 +518,13 @@ type scoreData struct {
 	XpToNext int64
 	AtMax    bool
 
+	// HasKarma shows the karma line (SR-M5) for a karma-ledger character, in
+	// place of the level/track line (a karma-ledger world is level-less).
+	// KarmaCurrent is the spendable balance; KarmaTotal is lifetime earned.
+	HasKarma     bool
+	KarmaCurrent int64
+	KarmaTotal   int64
+
 	HasEquip bool
 	Equip    []equipRow
 }
@@ -517,7 +538,7 @@ const scorePanelWidth = 80
 // is gated on its Has* flag, so it is unit-testable without an actor. A
 // minimal actor (name only) renders as the bare name, no frame.
 func renderScore(d scoreData) string {
-	if !(d.HasStats || d.HasVitals || d.HasLevel || d.HasEquip) {
+	if !(d.HasStats || d.HasVitals || d.HasLevel || d.HasKarma || d.HasEquip) {
 		return d.Name
 	}
 
@@ -546,6 +567,12 @@ func renderScore(d scoreData) string {
 		// multi-byte glyph would over-count this row and drift the border.
 		charCol = append(charCol, scHi(fmt.Sprintf("Level %d", d.Level))+" "+scSub("- "+d.Track))
 		charCol = append(charCol, scXPLine(d))
+	}
+	if d.HasKarma {
+		// SR-M5: a karma-ledger runner shows spendable karma + lifetime earned
+		// where a level-track character shows level/track. "Karma: 40 (170 earned)".
+		charCol = append(charCol, scKV("Karma",
+			scHi(fmt.Sprintf("%d", d.KarmaCurrent))+" "+scSub(fmt.Sprintf("(%d earned)", d.KarmaTotal)), 11))
 	}
 	if d.HasAlign {
 		charCol = append(charCol, scKV("Alignment", scHi(fmt.Sprintf("%s (%d)", d.AlignTag, d.Align)), 11))

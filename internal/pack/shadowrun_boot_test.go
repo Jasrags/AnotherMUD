@@ -2,6 +2,8 @@ package pack
 
 import (
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -427,6 +429,68 @@ func TestLoad_ShadowrunCurrency(t *testing.T) {
 	}
 	if got := cur.Title(); got != "Nuyen" {
 		t.Errorf("Title() = %q, want Nuyen", got)
+	}
+}
+
+// TestLoad_ShadowrunAdvancement gates the karma-ledger strategy selection
+// (SR-M5): the shadowrun manifest's `advancement: karma-ledger` must land in
+// WorldAdvancement so the session actor routes rewards into a karma balance
+// instead of onto a progression track. A level-track world (starter-world) is
+// absent from the map — the default.
+func TestLoad_ShadowrunAdvancement(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+	if got := regs.WorldAdvancement["shadowrun"]; got != AdvancementKarmaLedger {
+		t.Errorf("shadowrun advancement = %q, want %q", got, AdvancementKarmaLedger)
+	}
+	// A level-track world is not in the map — the default strategy needs no entry.
+	if _, ok := regs.WorldAdvancement["tapestry-core"]; ok {
+		t.Errorf("the engine baseline should carry no advancement entry (it is not a world)")
+	}
+}
+
+// TestLoad_UnknownAdvancementRejected proves a typo in the manifest
+// `advancement:` field is a hard load error, not a silent fall-through to
+// level-track (SR-M5) — the karma-vs-XP routing must never depend on a
+// misspelling passing unnoticed.
+func TestLoad_UnknownAdvancementRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeManifest := func(name, body string) string {
+		d := filepath.Join(dir, name)
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "pack.yaml"), []byte(body), 0o644); err != nil {
+			t.Fatalf("write manifest: %v", err)
+		}
+		return d
+	}
+	writeManifest("badworld", "name: badworld\nkind: world\nsplash: splash.txt\nadvancement: karma_ledger\n")
+	if err := os.WriteFile(filepath.Join(dir, "badworld", "splash.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatalf("write splash: %v", err)
+	}
+	regs := NewRegistries()
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	err := Load(context.Background(), dir, []string{"badworld"}, regs, nil, nil, nil)
+	if err == nil {
+		t.Fatal("Load accepted an unknown advancement strategy — a typo silently fell through to level-track")
+	}
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("error = %v, want ErrInvalidContent", err)
 	}
 }
 
