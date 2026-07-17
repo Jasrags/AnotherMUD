@@ -285,6 +285,12 @@ correctness precondition.
   is a *view* — no rules, no authoritative state.
 - **`Client.Hello` capability announce.** Deferred (§2.4). Add only to gate rich
   emissions when bandwidth to non-web clients is measurably wasteful.
+- **Where do aliases / triggers / macros live?** RESOLVED (2026-07-17) →
+  **server-side + GMCP**: aliases/macros/speedwalk go in the player save + a new
+  `Char.Aliases`-style package so config roams across Mudlet ↔ web; expansion
+  runs server-side (authority invariant intact); trigger *patterns* roam but
+  match/render stays per-client. Full rationale + division-of-labor in
+  [`../clients/parity-matrix.md`](../clients/parity-matrix.md).
 
 ## 6. What this does NOT change
 
