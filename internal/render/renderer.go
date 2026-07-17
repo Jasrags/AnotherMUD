@@ -124,6 +124,39 @@ func (r *ColorRenderer) renderTier(s string, ansi bool, tier ColorTier) string {
 				openColor = opened == openOpen
 			}
 			i += consumed
+		case c == '`':
+			// Command highlight: a `verb` span (the content convention across
+			// dialogue, quests, help, and room prose) renders in the `cmd`
+			// color (ui-rendering-help §2.6). The backticks are KEPT so the
+			// visible text is identical in color and plain modes (the renderer
+			// invariant) and substring assertions on `verb` still hold; only
+			// the color wraps them. A lone/oversized backtick passes through
+			// literally, and in plain mode there is no transform at all.
+			end := commandSpanEnd(s, i)
+			if end < 0 {
+				b.WriteByte('`')
+				i++
+				continue
+			}
+			span := s[i : end+1] // both backticks; ESC-free (commandSpanEnd)
+			// Only colorize a TOP-LEVEL span. Inside an already-open color
+			// (e.g. a `verb` sitting in a <threat>…</threat> body, or the
+			// room-prose <cmd>`ask`</cmd> wrapper) our reset would clobber the
+			// enclosing color for the rest of its content — the renderer is
+			// flat with no attribute stack (§2.4). There we keep the backticks
+			// literal and let the enclosing color stand.
+			if ansi && !openColor {
+				if pair, ok := r.theme.ResolveForTier("cmd", tier); ok {
+					b.WriteString(pair.Open)
+					b.WriteString(span)
+					b.WriteString(Reset)
+					openColor = false
+					i = end + 1
+					continue
+				}
+			}
+			b.WriteString(span)
+			i = end + 1
 		default:
 			b.WriteByte(c)
 			i++

@@ -263,6 +263,44 @@ no-color client every tag strips away to clean prose.
 - [ ] Highlighting is content-authored — the renderer applies no
       automatic keyword detection.
 
+#### 2.6.1 Backtick command highlight (all text)
+
+The `<cmd>` tag above is the room-prose form of a more general
+convention: **a `` `verb` `` backtick span is a suggested command**,
+and the color renderer paints any such span in the `cmd` color
+*wherever text flows through it* — NPC dialogue, quest offers and
+hints, help, emotes, tells, system lines, and room prose alike, not
+only inside a `<cmd>` tag. Because every player-facing string passes
+through the one renderer choke point, the highlight is universal with
+no per-surface wiring and no re-authoring: the `` `verb` `` convention
+already used throughout content lights up on its own.
+
+Rules, mirroring the tag forms:
+
+- The **backticks are kept** — the visible text is identical in color
+  and no-color modes (§2.4 renderer invariant); only the color wraps
+  them. A no-color client sees the plain `` `verb` `` it always did.
+- A span is a command only when it is well-formed: non-empty, on one
+  line, holding no other markup delimiter (`` ` ``, `<`, `{`), and
+  short (a verb plus a few tokens). A lone or oversized backtick is
+  literal prose.
+- In a dim room the dim render leaves `` `verb` `` spans bare, exactly
+  as it does the highlight tags, so they pop against the muted prose.
+- The `cmd` theme entry is the single color for both the `<cmd>` tag
+  and bare backticks; a theme without it leaves spans uncolored (the
+  backticks still show). Detection is purely structural — the renderer
+  never guesses which bare words are commands.
+
+**Acceptance criteria**
+
+- [ ] A `` `verb` `` span in dialogue / quest text / help renders in
+      the `cmd` color, backticks retained, in a color client.
+- [ ] The same span in a no-color client is the plain `` `verb` ``.
+- [ ] A lone backtick, an empty `` `` ``, or an over-long span is
+      left literal.
+- [ ] In a dim room a `` `verb` `` span renders at full `cmd` color,
+      not dimmed.
+
 ---
 
 ## 3. Theme registry

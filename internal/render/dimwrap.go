@@ -5,8 +5,9 @@ import "strings"
 // DimWrap prepares a room description for the reduced-light (Dim) render
 // so that inline keyword-highlight tags still pop against the muted prose
 // (ui-rendering-help §2.6). It wraps the plain, untagged text runs in
-// `{dim}…{/}` while leaving highlight tag spans (`<feature>…</feature>`,
-// `<exit>…`, `<threat>…`, `<cmd>…`) bare, so the color renderer emits the
+// `{dim}…{/}` while leaving highlight spans — the tag forms
+// (`<feature>…</feature>`, `<exit>…`, `<threat>…`, `<cmd>…`) and bare
+// `verb` command backticks — un-dimmed, so the color renderer emits the
 // prose faint and each highlight at full brightness.
 //
 // Why not just wrap the whole description in one `{dim}…{/}`? The color
@@ -66,6 +67,18 @@ func DimWrap(s string) string {
 				continue
 			}
 			// Unmatched '<' — fall through and treat as literal prose.
+		}
+		if depth == 0 && s[i] == '`' {
+			if end := commandSpanEnd(s, i); end >= 0 {
+				// A `verb` command span: emit it bare (undimmed) so the color
+				// renderer paints it at full `cmd` brightness against the faint
+				// prose, mirroring the tag handling above.
+				closeDim()
+				b.WriteString(s[i : end+1])
+				i = end + 1
+				continue
+			}
+			// A lone backtick — treat as literal prose.
 		}
 		if depth == 0 {
 			openDim()
