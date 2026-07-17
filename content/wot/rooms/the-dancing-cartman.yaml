@@ -6,9 +6,9 @@ description: |
   a dim, smoky, low-ceilinged room that smells of stale beer and frying fat, its
   floor unswept and its custom rougher still. Teamsters and travellers hunch over
   their drink at greasy tables, an unwashed potboy threads between them, and the
-  innkeeper watches the room and the door alike with a thin, grasping wariness, as
-  ready to short a man his change as to call the bullyboys on a guest who cannot
-  pay. The crossroads and the muddy square lie back out to the south.
+  <threat>innkeeper</threat> watches the room and the door alike with a thin, grasping wariness, as
+  ready to short a man his change as to call the <threat>bullyboys</threat> on a guest who cannot
+  pay. The crossroads and the muddy square lie back out to the <exit>south</exit>.
 exits:
   south: the-kings-crossroads
 terrain: indoors

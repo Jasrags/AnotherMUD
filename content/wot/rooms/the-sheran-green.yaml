@@ -2,13 +2,13 @@ id: the-sheran-green
 area: market-sheran
 name: "{g}Market Sheran — the Green{x}"
 description: |
-  The village green is a neat square of cropped grass with a well at its centre
+  The village green is a neat square of cropped grass with a <feature>well</feature> at its centre
   and a flagged path worn across it, ringed by solid stone-and-thatch houses
   that have stood a hundred years and mean to stand a hundred more. Geese
   complain by the well, a dog sleeps in a doorway, and the whole place has the
   ordered, prosperous calm of a village that has never wanted for much. The
-  Caemlyn Road comes in from Four Kings to the west; the market stalls stand
-  north, an inn faces the green to the south, and the road runs on east.
+  Caemlyn Road comes in from Four Kings to the <exit>west</exit>; the market stalls stand
+  <exit>north</exit>, an inn faces the green to the <exit>south</exit>, and the road runs on <exit>east</exit>.
 exits:
   west: the-sheran-road
   north: the-sheran-market

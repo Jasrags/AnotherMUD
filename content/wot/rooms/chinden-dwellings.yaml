@@ -5,10 +5,10 @@ description: |
   The Ogier do not build so much as coax, and their houses prove it: low green
   mounds rise from the hillside here, grown half of living earth and half of
   trees trained over long centuries into walls and broad doorways, their lintels
-  carved with the same flowing script as the threshold stone. Smoke curls gently
+  carved with the same flowing script as the <feature>threshold stone</feature>. Smoke curls gently
   from turfed roofs and the smell of baking and woodsmoke drifts on the still
   air. Somewhere a deep slow voice is reading aloud to children. The Stump lies
-  back south.
+  back <exit>south</exit>.
 exits:
   south: chinden-stump
 terrain: field

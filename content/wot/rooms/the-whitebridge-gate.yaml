@@ -2,14 +2,14 @@ id: the-whitebridge-gate
 area: caemlyn
 name: "{w}Caemlyn — the Whitebridge Gate{x}"
 description: |
-  The western gate of Caemlyn — the Whitebridge Gate, where the long road from
+  The western <feature>gate</feature> of Caemlyn — the Whitebridge Gate, where the long road from
   Four Kings and Whitebridge comes in — is a great arch of grey stone in a wall
   fifty feet high, its iron-bound valves thrown back and the Queen's Guard
   standing watch in burnished mail and red-and-white tabards while the endless
   traffic of the road pours through beneath them. The din and colour of the city
   break over you all at once — criers, hawkers, the rumble of wheels on cobbles,
   the press of more folk than the whole Two Rivers holds. The open road falls
-  away west; Caemlyn's New City spreads east beyond the gate.
+  away <exit>west</exit>; Caemlyn's New City spreads <exit>east</exit> beyond the gate.
 exits:
   west: the-caemlyn-approach
   east: the-new-city

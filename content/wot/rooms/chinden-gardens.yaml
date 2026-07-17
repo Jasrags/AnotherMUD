@@ -2,13 +2,13 @@ id: chinden-gardens
 area: stedding-chinden
 name: "{g}The Gardens of Chinden{x}"
 description: |
-  South of the Stump the vale floor is given over to gardens, and there are no
-  finer in the world — the Ogier are the great gardeners, and here orchard and
+  South of the Stump the vale floor is given over to <feature>gardens</feature>, and there are no
+  finer in the world — the Ogier are the great gardeners, and here <feature>orchard</feature> and
   herb-bed and flowering terrace fall away down the slope in patterns too vast
   and too patient to take in from the ground. Bees drone in blossom out of
   season, fruit hangs heavy on trees that should not bear together, and the air
   is thick and sweet with a hundred growing things. An old Ogier works a bed
-  nearby with unhurried care. The Stump lies back north.
+  nearby with unhurried care. The Stump lies back <exit>north</exit>.
 exits:
   north: chinden-stump
 terrain: field

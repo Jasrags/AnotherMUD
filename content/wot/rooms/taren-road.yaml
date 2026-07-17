@@ -3,9 +3,9 @@ area: taren-ferry
 name: "{g}The Taren Road{x}"
 description: |
   Past Watch Hill the North Road gives up all pretence of being travelled and
-  runs on alone toward the river, the country flattening and the air taking on
+  runs on alone toward the <feature>river</feature>, the country flattening and the air taking on
   the cool green smell of water. Reeds crowd the ditches and the hedges grow
-  ragged. Watch Hill and the heart of the Two Rivers lie back to the south;
+  ragged. Watch Hill and the heart of the Two Rivers lie back to the <exit>south</exit>;
   ahead, the rooftops of Taren Ferry huddle against the line of the Taren.
 exits:
   south: watch-hill-lookout

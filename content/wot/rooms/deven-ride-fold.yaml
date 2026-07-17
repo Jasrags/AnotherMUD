@@ -2,11 +2,11 @@ id: deven-ride-fold
 area: deven-ride
 name: "The Sheepfold"
 description: |
-  A great drystone fold runs along the village edge here, hurdles and pens
+  A great <feature>drystone fold</feature> runs along the village edge here, hurdles and pens
   crowded with milling sheep and the air loud with their complaint. Bales of
   raw fleece are stacked under a lean-to waiting for the carders, and a shepherd
   works among the flock with the unhurried patience of a man who has nowhere
-  else he would rather be. The green lies back to the west; eastward the dry
+  else he would rather be. The green lies back to the <exit>west</exit>; <exit>east</exit>ward the dry
   pasture sags into wet ground and the reeds of the Waterwood, where no sensible
   shepherd takes a flock.
 exits:

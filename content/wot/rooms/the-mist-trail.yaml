@@ -2,11 +2,11 @@ id: the-mist-trail
 area: mountains-of-mist
 name: "{c}The Mist Trail{x}"
 description: |
-  Above the Sand Hills the ground rears up in earnest, and a thread of a trail
+  Above the Sand Hills the ground rears up in earnest, and a thread of a <feature>trail</feature>
   switches back and forth across the bare grey flank of the mountains. Cloud
   drags low here, beading cold on stone and skin and swallowing the peaks
   overhead; the only sounds are wind and the click of loose rock underfoot. Far
-  below and behind, the green smudge of the Westwood marks the way down; the
+  below and behind, the green smudge of the Westwood marks the way <exit>down</exit>; the
   trail climbs on into the mist above.
 exits:
   down: sand-hills-foot

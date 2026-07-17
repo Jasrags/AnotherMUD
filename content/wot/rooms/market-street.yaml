@@ -6,10 +6,10 @@ description: |
   shuttered fronts of merchants and chandlers and loud with the cries of
   hawkers working the crowd. Miners come down off the slopes shoulder to
   shoulder with wagoners, peddlers, and hard-eyed strangers, and through the
-  press a pair of white-cloaked Children of the Light walk untouched, the crowd
+  press a pair of white-cloaked <threat>Children of the Light</threat> walk untouched, the crowd
   parting around them like water round a stone. The Mountain Gate stands back to
-  the west; the lamps of an inn glow to the north, a silversmith's shop shows
-  south, and ahead east the street runs on to the Town Square at the heart of
+  the <exit>west</exit>; the lamps of an inn glow to the <exit>north</exit>, a silversmith's shop shows
+  <exit>south</exit>, and ahead <exit>east</exit> the street runs on to the Town Square at the heart of
   Baerlon.
 exits:
   west: the-mountain-gate

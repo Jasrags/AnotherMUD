@@ -2,12 +2,12 @@ id: the-elders-stone
 area: mountains-of-mist
 name: "{g}The Elder's Stone{x}"
 description: |
-  A single great stone stands beside the way where the vale narrows toward the
+  A single great <feature>stone</feature> stands beside the way where the vale narrows toward the
   trees, its face worn smooth and graven deep with flowing Ogier script no human
   hand could cut. It marks a threshold: a stillness lies beyond it that the skin
   feels before the mind names it, the held breath of a place older than kingdoms.
   This is the bound of Stedding Chinden. The great trees and the stedding proper
-  lie west; the vale runs back east toward the pass.
+  lie <exit>west</exit>; the vale runs back <exit>east</exit> toward the pass.
 exits:
   east: the-vale-of-chinden
   west: chinden-stump

@@ -6,8 +6,8 @@ description: |
   and the first trees of the Westwood close in — oak and leatherleaf, the
   ground soft underfoot with old leaves and dappled where the light comes
   through. It is a friendly enough stretch of wood, picked over by villagers
-  for kindling and herbs. The smithy and the village lie back east; the trees
-  thicken away to the west.
+  for kindling and herbs. The <feature>smithy</feature> and the village lie back <exit>east</exit>; the <feature>trees</feature>
+  thicken away to the <exit>west</exit>.
 exits:
   east: the-forge
   west: deep-westwood

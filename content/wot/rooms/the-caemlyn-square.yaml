@@ -5,11 +5,11 @@ description: |
   The avenue opens into a vast cobbled square at the centre of the New City,
   ringed with the grand fronts of guildhalls and counting-houses and loud with
   the business of a great capital. Above the rooftops rises the second wall and
-  the white-towered crown of the Inner City, catching the light like something
+  the white-towered <feature>crown of the Inner City</feature>, catching the light like something
   out of a story; folk gather here just to stand and look at it. A famous old
-  inn, the Queen's Blessing, fronts the square to the north. The New City avenue
-  runs back west; eastward the busy way to the Sunrise Gate and the Cairhien road
-  opens, and south Full Moon Street runs down to divide the New City from the
+  inn, the Queen's Blessing, fronts the square to the <exit>north</exit>. The New City avenue
+  runs back <exit>west</exit>; <exit>east</exit>ward the busy way to the Sunrise Gate and the Cairhien road
+  opens, and <exit>south</exit> Full Moon Street runs down to divide the New City from the
   Inner City within.
 exits:
   west: the-new-city

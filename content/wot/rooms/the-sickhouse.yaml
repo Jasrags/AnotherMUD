@@ -7,7 +7,7 @@ description: |
   quiet room of narrow cots, the smell of the Wisdom's herbs and clean linen, and
   a window kept open to the garden. More often than not it stands empty and
   waiting, which the folk of the Two Rivers count a blessing on a healthy
-  district. The Wisdom's cottage and her herb-garden lie back west.
+  district. The Wisdom's cottage and her herb-garden lie back <exit>west</exit>.
 exits:
   west: wisdoms-cottage
 terrain: indoors

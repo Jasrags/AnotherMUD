@@ -5,8 +5,8 @@ description: |
   The Old Road runs south from the Winespring out between drystone walls and
   blackberry hedges, the way to Deven Ride and the southern farms. It is the
   quietest of the village roads, sunk a little below the fields, dappled where
-  old oaks lean across it. The Winespring and the Green lie back to the north;
-  the road runs on south through sheep-pasture toward Deven Ride.
+  old oaks lean across it. The Winespring and the Green lie back to the <exit>north</exit>;
+  the road runs on <exit>south</exit> through sheep-pasture toward Deven Ride.
 exits:
   north: the-winespring
   south: the-south-pasture

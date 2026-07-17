@@ -4,11 +4,11 @@ name: "The Aybara Farm"
 description: |
   East of the village the lane comes to the Aybara farm, a big, well-kept
   steading of barn and byre and farmhouse set among good tilled fields, with a
-  blacksmith's forge standing cold in an open shed by the gate — for the Aybaras
+  blacksmith's <feature>forge</feature> standing cold in an open shed by the gate — for the Aybaras
   are a smithing family as much as a farming one. Hens scratch in the yard, smoke
   rises from the kitchen chimney, and there is an air of solid, unhurried
   prosperity over the whole place. The mill and the road back to the village lie
-  west.
+  <exit>west</exit>.
 exits:
   west: jon-thanes-mill
 terrain: outdoors

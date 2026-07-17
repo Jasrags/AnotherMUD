@@ -3,11 +3,11 @@ area: emonds-field
 name: "The al'Thor Farm"
 description: |
   A little way south of the Quarry Road, hard against the edge of the Westwood and
-  the rise of the Sand Hills, stands the al'Thor farm — a snug stone farmhouse and
+  the rise of the Sand Hills, stands the al'Thor farm — a snug stone <feature>farmhouse</feature> and
   a tidy yard, the fields running back toward the trees and a flock of blackface
   sheep cropping the high pasture above. It is a quiet, well-tended, out-of-the-way
   place, further from the village than most and the better liked for it by those
-  who live there. The Quarry Road and the way back to the village lie north.
+  who live there. The Quarry Road and the way back to the village lie <exit>north</exit>.
 exits:
   north: quarry-road
 terrain: outdoors

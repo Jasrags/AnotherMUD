@@ -2,13 +2,13 @@ id: the-whitebridge-docks
 area: whitebridge
 name: "{c}Whitebridge — the River Docks{x}"
 description: |
-  The lane comes down to a row of timber wharves along the Arinelle, where
-  flat-bottomed river craft and broad trading barges lie moored against the
+  The lane comes down to a row of timber <feature>wharves</feature> along the Arinelle, where
+  flat-bottomed river craft and broad trading <feature>barges</feature> lie moored against the
   current, taking on grain and ore and putting off cloth and salt and southern
   wine. The air is loud with the creak of rope and windlass and the calls of the
   bargemen, and the great river slides past wide and grey, bound away south for
   Illian and the sea. A weathered riverman watches the water from a coil of
-  hawser, and the market square lies back up the lane to the north.
+  hawser, and the market square lies back up the lane to the <exit>north</exit>.
 exits:
   north: whitebridge-square
 terrain: outdoors

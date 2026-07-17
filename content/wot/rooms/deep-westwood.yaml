@@ -4,9 +4,9 @@ name: "{g}Deep in the Westwood{x}"
 description: |
   Here the wood closes in for true, the oaks giving way to dark stands of pine
   and the light failing to a green dimness between the trunks. Mushrooms cluster
-  in the leaf-mould, deadfall lies thick enough to cut, and the only sounds are
+  in the leaf-mould, <feature>deadfall</feature> lies thick enough to cut, and the only sounds are
   the wind in the high branches and, now and again, something moving off through
-  the undergrowth. The village lies a good way back east; the ground rises west
+  the undergrowth. The village lies a good way back <exit>east</exit>; the ground rises <exit>west</exit>
   toward the bare stone of the Sand Hills.
 exits:
   east: westwood-edge

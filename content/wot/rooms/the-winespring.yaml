@@ -3,11 +3,11 @@ area: emonds-field
 name: "{c}The Winespring{x}"
 description: |
   Here at the south edge of the Green the ground falls away to a stone-lipped
-  pool where the Winespring rises, cold and sweet, welling up out of the rocks
+  <feature>pool</feature> where the Winespring rises, cold and sweet, welling up out of the rocks
   in a steady chuckle that never fails even in the driest summer. From it the
   Winespring Water runs off eastward through the village and away toward the
   marshes — the folk here just call it the Water. The Green lies back to the
-  north; the Old Road bends away south between the hedgerows toward Deven Ride.
+  <exit>north</exit>; the Old Road bends away <exit>south</exit> between the hedgerows toward Deven Ride.
 exits:
   north: the-green
   south: old-road

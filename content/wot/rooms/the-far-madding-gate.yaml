@@ -2,11 +2,11 @@ id: the-far-madding-gate
 area: caemlyn
 name: "{w}Caemlyn — the Far Madding Gate{x}"
 description: |
-  The southern gate of the city stands at the foot of Full Moon Street, opening
+  The southern <feature>gate</feature> of the city stands at the foot of Full Moon Street, opening
   on the long road south toward Far Madding and the southlands. The trade through
   it is steady and unremarkable, and beyond the wall the road dwindles away across
   the rolling country toward distances few in Caemlyn ever trouble to think about.
-  Full Moon Street and the dividing of the city lie back north; the southern road
+  Full Moon Street and the dividing of the city lie back <exit>north</exit>; the southern road
   runs out beyond the gate.
 exits:
   north: the-full-moon-street

@@ -2,13 +2,13 @@ id: the-arien-wright
 area: arien
 name: "{y}Arien — the Wainwright's Yard{x}"
 description: |
-  An open-fronted shed and a hard-packed yard littered with the trade of a
+  An open-fronted <feature>shed</feature> and a hard-packed yard littered with the trade of a
   road-town wainwright: spare wheels stacked man-high, axles and felloes and
   iron tyres, a trestle where a half-built wagon-bed waits. The wright works
   with the unhurried sureness of a craftsman who knows that on this road a man
   with a sound wheel is a customer and a man with a broken one is a captive
   market. He sells the cordage and grease and odd gear a traveller burns
-  through, and is glad of the custom. The green lies back north.
+  through, and is glad of the custom. The green lies back <exit>north</exit>.
 exits:
   north: the-arien-green
 terrain: outdoors

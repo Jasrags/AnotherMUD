@@ -6,9 +6,9 @@ description: |
   streets cross, loud with the business of a mining town that has grown fat on
   the iron and silver of the mountains. Carters and miners and merchants throng
   it, a town crier bawls the Governor's latest proclamation from the steps of a
-  fountain, and the solid stone front of the Governor's Hall faces the square to
-  the east. Market Street runs back west to the Mountain Gate; the ore-market and
-  the mining quarter lie north, and the way east leads on past the Hall to the
+  <feature>fountain</feature>, and the solid stone front of the Governor's Hall faces the square to
+  the <exit>east</exit>. Market Street runs back <exit>west</exit> to the Mountain Gate; the ore-market and
+  the mining quarter lie <exit>north</exit>, and the way east leads on past the Hall to the
   Caemlyn Gate and the road to Whitebridge.
 exits:
   west: market-street

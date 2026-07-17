@@ -5,10 +5,10 @@ description: |
   The road crests a last stony rise and Baerlon lies below you at the feet of
   the mountains — a sprawl of slate and shingle roofs hemmed in by a high wooden
   wall, smoke hazing up from a hundred chimneys and the deeper smudge of the
-  smelters. Here the ways divide before the town's western Mountain Gate: south
-  the road drops back down toward the Taren and the Two Rivers, and north a
+  smelters. Here the ways divide before the town's western <feature>Mountain Gate</feature>: <exit>south</exit>
+  the road drops back down toward the Taren and the Two Rivers, and <exit>north</exit> a
   rougher track climbs away along the foot of the Mountains of Mist toward
-  Comfrey. The Mountain Gate stands open in the wall to the east.
+  Comfrey. The Mountain Gate stands open in the wall to the <exit>east</exit>.
 exits:
   south: the-andor-road
   north: the-comfrey-road

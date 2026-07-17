@@ -4,8 +4,8 @@ name: "The Sealed Drift"
 description: |
   A drift hacked out of the bedrock and then walled off and forgotten — whatever
   the old miners wanted kept out of easy reach still waits here in the dark. A
-  fresh iron seam glitters where a pick was set down and never taken up again.
-  The rusted iron door back up to the deep diggings is the only way out.
+  fresh <feature>iron seam</feature> glitters where a pick was set down and never taken up again.
+  The rusted <feature>iron door</feature> back <exit>up</exit> to the deep diggings is the only way out.
 terrain: cave
 # Light & darkness (§9): deliberately no light override — a cave room with no
 # override resolves toward darkness underground, so the drift is dim-to-black as

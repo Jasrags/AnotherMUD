@@ -7,8 +7,8 @@ description: |
   ramshackle warehouses crowd the verges, the mud is deep and foul, and the few
   folk about watch you pass with a flat, hungry calculation that has nothing
   friendly in it. There is no wall and no gate worth the name — only the road
-  thickening into a mean street ahead, east into the town. The open country and
-  the long road to Whitebridge lie back west.
+  thickening into a mean street ahead, <exit>east</exit> into the town. The open country and
+  the long road to Whitebridge lie back <exit>west</exit>.
 exits:
   west: the-wagon-road
   east: four-kings-gate

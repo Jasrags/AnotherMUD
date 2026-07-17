@@ -2,13 +2,13 @@ id: the-mountain-gate
 area: baerlon
 name: "{w}Baerlon — the Mountain Gate{x}"
 description: |
-  The town's western gate — the Mountain Gate — is a heavy thing of iron-bound
+  The town's western gate — the <feature>Mountain Gate</feature> — is a heavy thing of iron-bound
   timber set in the high wooden wall, wide enough for two ore-wagons abreast and
   crowded with the comings and goings of a mining town. A guard in a battered
   breastplate leans in the gateway and looks over every stranger who passes with
   the flat, unhurried suspicion of a man who has seen trouble walk in on two legs
-  before. Outside the gate the roads fork away west — south toward the Two Rivers,
-  north toward Comfrey and the Mountains of Mist; within, Market Street runs east
+  before. Outside the gate the roads fork away <exit>west</exit> — south toward the Two Rivers,
+  north toward Comfrey and the Mountains of Mist; within, Market Street runs <exit>east</exit>
   through the heart of the town toward the Caemlyn Gate.
 exits:
   west: baerlon-approach

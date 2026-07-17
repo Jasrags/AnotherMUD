@@ -2,13 +2,13 @@ id: the-bridge-foot
 area: whitebridge
 name: "{w}Whitebridge — the Bridge Foot{x}"
 description: |
-  The White Bridge comes down to earth here at the western edge of the town, its
+  The <feature>White Bridge</feature> comes down to earth here at the western edge of the town, its
   impossible white arch springing up behind you and the ordinary mud and cobbles
-  of Whitebridge beginning ahead. A guardhouse in the red-and-white of Andor
+  of Whitebridge beginning ahead. A <feature>guardhouse</feature> in the red-and-white of Andor
   stands at the bridgehead, and a Queen's Guardsman leans in its doorway keeping a
   lazy eye on who crosses and what they carry. Carters and porters throng the
   approach, and the noise of the town rolls down to meet you. The bridge runs back
-  west over the river; Market Street and the heart of the town lie east.
+  <exit>west</exit> over the river; Market Street and the heart of the town lie <exit>east</exit>.
 exits:
   west: the-white-bridge
   east: whitebridge-square

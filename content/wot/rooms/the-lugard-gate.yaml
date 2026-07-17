@@ -2,7 +2,7 @@ id: the-lugard-gate
 area: caemlyn
 name: "{w}Caemlyn — the Lugard Gate{x}"
 description: |
-  A lesser gate in the south-western wall, the Lugard Gate lets out onto the road
+  A lesser <feature>gate</feature> in the south-western <feature>wall</feature>, the Lugard Gate lets out onto the road
   that runs away toward Murandy and the rough trading-town of Lugard. The traffic
   through it is plainer and a touch warier — drovers, peddlers, hard-bitten
   carters bound for less orderly country than Andor — and the Guard watch them

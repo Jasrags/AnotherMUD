@@ -2,13 +2,13 @@ id: the-mondel-gate
 area: caemlyn
 name: "{w}Caemlyn — the Mondel Gate{x}"
 description: |
-  The Mondel Gate stands open in the wall of the Inner City, and the wall itself
+  The Mondel Gate stands open in the wall of the Inner City, and the <feature>wall</feature> itself
   is like nothing else in the world of men: a hundred feet of seamless white
   stone shot through with veins of silver that take the sun and throw it back in a
   soft blaze, laid by Ogier masons in the first age after the Breaking and
-  unweathered by all the centuries since. The gate is watched but unbarred, and
+  unweathered by all the centuries since. The <feature>gate</feature> is watched but unbarred, and
   beyond it the ancient city climbs its hill in tiers of garden and tower. Full
-  Moon Street and the New City lie back east; the Inner City waits west through
+  Moon Street and the New City lie back <exit>east</exit>; the Inner City waits <exit>west</exit> through
   the gate.
 exits:
   east: the-full-moon-street

@@ -7,7 +7,7 @@ description: |
   that gives the range its name. Mist drifts in the hollows even at midday, cold
   and clinging, and the only sounds are the wind, the clatter of falling stone,
   and somewhere far off the bawl of a mountain sheep. The track from Baerlon
-  falls away south; ahead north, tucked into a sheltered fold of the mountains,
+  falls away <exit>south</exit>; ahead <exit>north</exit>, tucked into a sheltered fold of the mountains,
   lie the roofs of Comfrey.
 exits:
   south: the-comfrey-road

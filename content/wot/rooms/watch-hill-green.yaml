@@ -4,9 +4,9 @@ name: "{g}Watch Hill — the Green{x}"
 description: |
   Watch Hill's green is a smaller, steeper thing than Emond's Field's, tilted
   along the slope so that everything in the village seems to lean a little toward
-  the view. A handful of stone houses stand about it, and a low inn faces the
-  green from the east. The North Road climbs in from the south; a path leads up
-  to the crown of the hill and its lookout to the north.
+  the view. A handful of stone houses stand about it, and a low <feature>inn</feature> faces the
+  green from the <exit>east</exit>. The North Road climbs in from the <exit>south</exit>; a path leads up
+  to the crown of the hill and its lookout to the <exit>north</exit>.
 exits:
   south: the-north-pasture
   east: watch-hill-inn

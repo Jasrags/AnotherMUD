@@ -8,7 +8,7 @@ description: |
   white towers and silver-streaked walls left from the Age of Legends, gleaming
   above the sprawl of the newer town. The road is a river of traffic now, wagons
   and riders and folk afoot all drawn toward the same gates. Carysford and the
-  long road west lie behind; the high western gate of Caemlyn stands open ahead.
+  long road <exit>west</exit> lie behind; the high western <feature>gate</feature> of Caemlyn stands open ahead.
 exits:
   west: the-cary-bank
   east: the-whitebridge-gate

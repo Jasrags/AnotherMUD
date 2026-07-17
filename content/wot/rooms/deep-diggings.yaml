@@ -5,9 +5,9 @@ description: |
   The shaft opens into a worked-out chamber deep in the mountain's flank, the
   props black with age and the walls scored by long-dead picks. Whoever cut this
   place left in a hurry, or never left at all — but the iron is not spent: a
-  fresh seam glitters in the rock where the old work stopped. A low iron door,
+  fresh <feature>seam</feature> glitters in the rock where the old work stopped. A low <feature>iron door</feature>,
   rusted near shut, is set into the far wall where the old miners walled off a
-  drift; the shaft climbs back up toward the light behind you.
+  drift; the shaft climbs back <exit>up</exit> toward the light behind you.
 exits:
   up: the-diggings
   down: the-sealed-drift

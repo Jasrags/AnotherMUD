@@ -7,8 +7,8 @@ description: |
   of the mining country to the south to join the Caemlyn Road. The verges are
   churned to mud and littered with the wreckage of the trade — a cast horseshoe,
   a split barrel, the bones of a foundered ox. The land feels harder-used and
-  less friendly than the farmland behind. The waystop of Arien lies back west;
-  ahead east, the mean roofs of Four Kings show against the sky.
+  less friendly than the farmland behind. The waystop of Arien lies back <exit>west</exit>;
+  ahead <exit>east</exit>, the mean roofs of Four Kings show against the sky.
 exits:
   west: the-arien-green
   east: the-four-kings-approach

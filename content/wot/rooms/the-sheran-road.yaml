@@ -6,8 +6,8 @@ description: |
   through good Andoran farmland again, the verges green and tended, the fields
   ripening on either hand and a hedge-bird singing somewhere out of sight. After
   the mud and menace behind it the change is a relief, and the ordered country
-  feels honest and settled. The grubby roofs of Four Kings fall away west; the
-  tidy roofs and the mill-stack of Market Sheran rise ahead to the east.
+  feels honest and settled. The grubby roofs of Four Kings fall away <exit>west</exit>; the
+  tidy roofs and the <feature>mill-stack</feature> of Market Sheran rise ahead to the <exit>east</exit>.
 exits:
   west: the-east-end
   east: the-sheran-green

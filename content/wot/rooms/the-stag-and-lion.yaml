@@ -4,11 +4,11 @@ name: "{y}Baerlon — the Stag and Lion{x}"
 description: |
   The Stag and Lion is the best inn in Baerlon and means you to know it: three
   storeys of polished wood and white plaster, a great common room warm with
-  lamplight and the smell of roasting meat, and a fire big enough to turn an ox
+  lamplight and the smell of roasting meat, and a <feature>fire</feature> big enough to turn an ox
   on. Serving girls thread between crowded tables where merchants and miners and
   travellers trade news over wine, and the innkeeper hovers near the door,
   fretting over his guests and casting nervous glances at any cloak that might
-  be white. Market Street and the noise of the town lie back out to the south.
+  be white. Market Street and the noise of the town lie back out to the <exit>south</exit>.
 exits:
   south: market-street
 terrain: indoors

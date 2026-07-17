@@ -5,12 +5,12 @@ description: |
   Within the old wall the city changes utterly, and the noise of the New City
   falls away to a hush. The streets climb the hill in broad curving tiers, white
   stone underfoot and white towers above, and everywhere there are gardens —
-  hanging terraces of flowers, fountains playing in shaded courts, trees grown old
+  hanging terraces of flowers, <feature>fountains</feature> playing in shaded courts, trees grown old
   in stone planters older still. It is achingly beautiful, and built to a grander
   and gentler measure than men keep now, the work of the Ogier in the morning of
-  the world. The Mondel Gate and the outer city lie back east; south the streets
-  open before the Queen's Plaza and the Palace, and north, half-hidden in a quiet
-  garden court, stands a thing older even than this city — an Ogier Waygate.
+  the world. The Mondel Gate and the outer city lie back <exit>east</exit>; <exit>south</exit> the streets
+  open before the Queen's Plaza and the Palace, and <exit>north</exit>, half-hidden in a quiet
+  garden court, stands a thing older even than this city — an Ogier <feature>Waygate</feature>.
 exits:
   east: the-mondel-gate
   south: the-queens-plaza

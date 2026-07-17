@@ -4,12 +4,12 @@ name: "{w}Caemlyn — the Queen's Plaza{x}"
 description: |
   The Inner City's tiers culminate in the Queen's Plaza, a great open court of
   pale marble where the whole of Caemlyn seems to gather to do business in sight
-  of its rulers. Fountains play in ranks, the rising-sun of Andor flies from a
+  of its rulers. <feature>Fountains</feature> play in ranks, the rising-sun of Andor flies from a
   hundred staffs, and across the plaza stands the Royal Palace itself — a
   confection of white spires and golden domes and slim soaring towers, banner-hung
   and impossibly graceful, rising against the sky like the dream of a palace
-  rather than the stone fact of one. The Inner City streets fall away north; the
-  Palace gates stand to the south.
+  rather than the stone fact of one. The Inner City streets fall away <exit>north</exit>; the
+  Palace gates stand to the <exit>south</exit>.
 exits:
   north: the-inner-city
   south: the-royal-palace

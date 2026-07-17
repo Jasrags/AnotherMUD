@@ -5,7 +5,7 @@ description: |
   A cool, windowless storeroom off the common room, its shelves stacked with
   the inn's stock — wheels of cheese under muslin, sacks of flour, and a rack of
   good wine Bran keeps back for guests who can pay for it. The only way out is
-  the stout door back west into the common room.
+  the stout <feature>door</feature> back <exit>west</exit> into the common room.
 terrain: indoors
 # Lit by a lamp Bran leaves burning so the stock can be counted.
 properties:

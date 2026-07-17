@@ -5,10 +5,10 @@ description: |
   Here the great trees stand thickest, and they are wrong in a way that takes the
   breath — not wrong, but *shaped*, trunks and boughs flowing into bowls and
   arches and slow spirals no axe and no season could have made. This is a
-  Treesong grove, where the Ogier sing wood into living form rather than cut it,
+  <feature>Treesong grove</feature>, where the Ogier sing wood into living form rather than cut it,
   and a low wordless music threads the air, felt in the chest more than heard. To
-  the north, half-swallowed by ivy, something stands that is not a tree. The Stump
-  lies east.
+  the <exit>north</exit>, half-swallowed by ivy, something stands that is not a tree. The Stump
+  lies <exit>east</exit>.
 exits:
   east: chinden-stump
   north: chinden-waygate

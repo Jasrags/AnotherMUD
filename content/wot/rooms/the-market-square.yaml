@@ -6,9 +6,9 @@ description: |
   beating heart of Baerlon's trade. Andoran farmers sell grain and wool beside
   peddlers hawking pins and ribbons, while ore-factors haggle over the worth of
   the week's diggings and a town crier bawls the news from a barrel-top. A
-  general dealer keeps a well-stocked stall against the north side, and the
+  general dealer keeps a well-stocked <feature>stall</feature> against the north side, and the
   smell of the place is bread and dung and coal-smoke all at once. The Town
-  Square lies back south; a steep lane climbs north toward the mining quarter and
+  Square lies back <exit>south</exit>; a steep lane climbs <exit>north</exit> toward the mining quarter and
   the slopes above the town.
 exits:
   south: the-town-square

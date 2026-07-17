@@ -6,9 +6,9 @@ description: |
   busy river crossing, ringed with the signboards of inns and chandlers and
   carters' yards. Goods off the river barges and goods off the Caemlyn Road change
   hands here together — bolts of cloth, casks of Two Rivers tabac, ironmongery,
-  grain — and a sharp-tongued dealer keeps a well-stocked stall in the middle of
-  it all. The bridge and the river lie back west; the lamps of an inn glow warm
-  to the north, a lane drops south toward the river docks, and eastward the
+  grain — and a sharp-tongued dealer keeps a well-stocked <feature>stall</feature> in the middle of
+  it all. The bridge and the river lie back <exit>west</exit>; the lamps of an inn glow warm
+  to the <exit>north</exit>, a lane drops <exit>south</exit> toward the river docks, and <exit>east</exit>ward the
   Caemlyn Road runs on out of town toward Four Kings and, far beyond, Caemlyn.
 exits:
   west: the-bridge-foot

@@ -2,12 +2,12 @@ id: the-tar-valon-gate
 area: caemlyn
 name: "{w}Caemlyn — the Tar Valon Gate{x}"
 description: |
-  The northern gate of the city opens on the great road that runs away north
+  The northern <feature>gate</feature> of the city opens on the great road that runs away north
   toward Tar Valon and the White Tower, and there is a different quality to the
   traffic here — fewer farm-wagons, more couriers and grey-cloaked travellers and
   now and then a closed carriage that the Guardsmen wave through without a word.
   The gate-towers throw long shadows across the cobbles. The New City lies back
-  south into the heart of Caemlyn; the Tar Valon road runs north beyond the wall.
+  <exit>south</exit> into the heart of Caemlyn; the Tar Valon road runs north beyond the wall.
 exits:
   south: the-new-city
   # North stub: the road to Tar Valon (and the White Tower) — a future arm.

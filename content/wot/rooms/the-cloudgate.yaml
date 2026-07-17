@@ -2,12 +2,12 @@ id: the-cloudgate
 area: mountains-of-mist
 name: "{c}The Cloudgate{x}"
 description: |
-  The trail tops out in a narrow saddle between two grey shoulders of rock — the
+  The trail tops out in a narrow <feature>saddle</feature> between two grey shoulders of rock — the
   high pass the Two Rivers folk, those few who know it, call the Cloudgate. Wind
   funnels through it hard enough to lean on, tearing the mist into ragged
-  streamers, and for a heartbeat between gusts the land opens to the west: a
+  streamers, and for a heartbeat between gusts the land opens to the <exit>west</exit>: a
   sheltered green vale cupped among the peaks, impossibly soft against all this
-  stone. Behind, the trail drops away east and down toward the foothills.
+  stone. Behind, the trail drops away east and <exit>down</exit> toward the foothills.
 exits:
   down: the-mist-trail
   west: the-vale-of-chinden

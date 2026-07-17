@@ -4,9 +4,9 @@ name: "The Old Diggings"
 description: |
   A low cut bites into the hillside here, the stone around its mouth scarred by
   generations of pick-work and the air breathing out cool and mineral-damp from
-  the dark within. Rust-red seams of iron thread the grey rock, close enough to
+  the dark within. Rust-red <feature>seams</feature> of iron thread the grey rock, close enough to
   the surface to break loose with the right tool. The Sand Hills and the long
-  way back to the village lie east; a worked shaft drops away into deeper dark
+  way back to the village lie <exit>east</exit>; a worked <feature>shaft</feature> drops away into deeper dark
   below.
 exits:
   east: sand-hills-foot

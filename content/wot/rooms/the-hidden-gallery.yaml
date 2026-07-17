@@ -2,10 +2,10 @@ id: the-hidden-gallery
 area: mountains-of-mist
 name: "A Hidden Gallery"
 description: |
-  A narrow gallery opens beyond the fissure, a pocket the old miners cut and then
+  A narrow gallery opens beyond the <feature>fissure</feature>, a pocket the old miners cut and then
   left off the maps — barely wide enough to stand in, the air close and still.
   Someone cached a few things here out of sight and never came back for them. The
-  only way out is back east through the fissure into the diggings.
+  only way out is back <exit>east</exit> through the fissure into the diggings.
 terrain: cave
 # Lit-enough to read once a searcher slips in — a stub of candle burned down on a
 # ledge. Keeps the alcove navigable so its cache reads without a torch.

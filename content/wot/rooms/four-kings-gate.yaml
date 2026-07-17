@@ -4,11 +4,11 @@ name: "{y}Four Kings — the West End{x}"
 description: |
   The road becomes the town's one real street here, a rutted strip of mud and
   refuse running between leaning buildings that have plainly given up on paint.
-  A knot of hard-faced idlers loiters in the shade of a wagon-yard fence, marking
+  A knot of hard-faced <threat>idlers</threat> loiters in the shade of a wagon-yard fence, marking
   every stranger who comes off the road and reckoning the worth of his boots.
   There is a sour smell of spilled ale and worse, and the whole place has the
   watchful, transient meanness of a town that belongs to nobody. The Caemlyn
-  Road runs back west out of town; the street runs east to the crossroads.
+  Road runs back <exit>west</exit> out of town; the street runs <exit>east</exit> to the crossroads.
 exits:
   west: the-four-kings-approach
   east: the-kings-crossroads

@@ -4,10 +4,10 @@ name: "{y}Taren Ferry{x}"
 description: |
   The village is a single crooked street of houses set up on stone pilings
   against the river's floods, all of them turned to face the water and the
-  ferry that is the village's whole reason for being. A handful of folk watch
+  <feature>ferry</feature> that is the village's whole reason for being. A handful of folk watch
   you from doorways with quick, measuring eyes, already reckoning what you might
-  be worth. The Taren Road runs back south toward Watch Hill; the street drops
-  north to the ferry landing on the bank.
+  be worth. The Taren Road runs back <exit>south</exit> toward Watch Hill; the street drops
+  <exit>north</exit> to the ferry landing on the bank.
 exits:
   south: taren-road
   north: the-ferry-landing

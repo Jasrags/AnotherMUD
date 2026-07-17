@@ -3,10 +3,10 @@ area: deven-ride
 name: "{g}Deven Ride — the Green{x}"
 description: |
   Deven Ride's green is little more than a wide place in the road where the
-  hedges fall back, a well at its centre and a scatter of low stone cottages
+  hedges fall back, a <feature>well</feature> at its centre and a scatter of low stone cottages
   around it. Fleeces hang airing on a line, and the whole place smells of
-  lanolin and woodsmoke and sheep. The Old Road runs back north toward Emond's
-  Field; a lane leads east to the great sheepfold at the village edge.
+  lanolin and woodsmoke and sheep. The Old Road runs back <exit>north</exit> toward Emond's
+  Field; a lane leads <exit>east</exit> to the great sheepfold at the village edge.
 exits:
   north: the-south-pasture
   east: deven-ride-fold

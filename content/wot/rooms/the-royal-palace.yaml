@@ -2,13 +2,13 @@ id: the-royal-palace
 area: caemlyn
 name: "{w}Caemlyn — the Royal Palace{x}"
 description: |
-  The gates of the Royal Palace are tall and gilded and worked with the
+  The <feature>gates</feature> of the Royal Palace are tall and gilded and worked with the
   rising-sun of Andor, set in a graceful white gatehouse where the Queen's Guard
   stand at rigid attention in their finest harness, halberds bright. Beyond the
   bars lie the Palace grounds — clipped lawns, a glimpse of colonnade and garden,
   the seat of Morgase by the Grace of the Light Queen of Andor — but the gates
   are shut to all without the Queen's leave, and a Guardsman's level gaze makes
-  it plain you do not have it. Not today. The Queen's Plaza lies back north.
+  it plain you do not have it. Not today. The Queen's Plaza lies back <exit>north</exit>.
 exits:
   north: the-queens-plaza
   # Future: the Royal Palace interior (court, throne room, gardens) — gated

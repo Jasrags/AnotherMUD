@@ -7,8 +7,8 @@ description: |
   Inside, the white gleam of worked silver catches the forge-light — cups and
   chains and fine-chased plate, the luxury trade that the town's mines make
   possible and that no Two Rivers village smith would ever attempt. The smith
-  works a delicate graver over a bowl with a jeweller's patience, and looks up
-  ready enough to teach a steady hand the craft. Market Street lies back north.
+  works a delicate <feature>graver</feature> over a bowl with a jeweller's patience, and looks up
+  ready enough to teach a steady hand the craft. Market Street lies back <exit>north</exit>.
 exits:
   north: market-street
 terrain: outdoors

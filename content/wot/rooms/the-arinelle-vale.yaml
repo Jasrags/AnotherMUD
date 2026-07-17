@@ -3,11 +3,11 @@ area: caemlyn-road
 name: "{g}The Arinelle Vale{x}"
 description: |
   The land begins to fall, and the road winds down a long green vale toward the
-  shine of water in the distance — the Arinelle, the great river that runs the
+  shine of water in the distance — the Arinelle, the great <feature>river</feature> that runs the
   length of Andor, here a broad band of silver glimpsed between stands of willow
   and alder. The air grows softer and damper, loud with the chirr of the river
   reeds, and a faint white gleam shows far ahead where the road meets the water.
-  The highway climbs back west toward Baerlon; eastward it drops on to the
+  The highway climbs back <exit>west</exit> toward Baerlon; <exit>east</exit>ward it drops on to the
   river's bank.
 exits:
   west: the-caemlyn-road

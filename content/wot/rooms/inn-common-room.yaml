@@ -3,12 +3,12 @@ area: emonds-field
 name: "{y}The Winespring Inn — Common Room{x}"
 description: |
   The common room of the Winespring Inn is low-beamed and warm, a fire of
-  good Two Rivers oak snapping in a broad stone hearth and the smell of ale and
-  wax and woodsmoke thick in the air. Polished tables crowd the floor, scarred
-  by years of dice and elbows, and a long counter runs down one side where the
-  innkeeper keeps his casks and his accounts. A doorway north opens on the heat
-  and clatter of the kitchen; a stair climbs to the guest rooms above, and the
-  Green lies back out through the front door to the west.
+  good Two Rivers oak snapping in a broad stone <feature>hearth</feature> and the smell of ale and
+  wax and woodsmoke thick in the air. Polished <feature>tables</feature> crowd the floor, scarred
+  by years of dice and elbows, and a long <feature>counter</feature> runs down one side where the
+  innkeeper keeps his casks and his accounts. A doorway <exit>north</exit> opens on the heat
+  and clatter of the kitchen; a stair climbs <exit>up</exit> to the guest rooms above, and the
+  Green lies back out through the front door to the <exit>west</exit>.
 exits:
   west: the-green
   north: inn-kitchen

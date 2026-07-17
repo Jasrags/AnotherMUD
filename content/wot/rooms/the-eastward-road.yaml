@@ -3,11 +3,11 @@ area: caemlyn-road
 name: "{g}The Caemlyn Road — East of Whitebridge{x}"
 description: |
   Past the last houses of Whitebridge the Caemlyn Road throws off the town and
-  strikes out east across open Andoran farmland, broad and busy and straight as
+  strikes out <exit>east</exit> across open Andoran farmland, broad and busy and straight as
   a bowshot. Wagons grind by in both directions, raising a haze of dust that
-  hangs golden in the afternoon light, and the white arch of the bridge dwindles
+  hangs golden in the afternoon light, and the white arch of the <feature>bridge</feature> dwindles
   behind. This is the long middle of Andor, prosperous and dull and safe — for
-  now. Whitebridge lies back west; the road runs on east toward the waystop of
+  now. Whitebridge lies back <exit>west</exit>; the road runs on east toward the waystop of
   Arien.
 exits:
   west: whitebridge-square

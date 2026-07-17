@@ -2,12 +2,12 @@ id: inn-kitchen
 area: emonds-field
 name: "{y}The Winespring Inn — Kitchen{x}"
 description: |
-  The inn's kitchen is a hot, busy place, the great iron range glowing and a
+  The inn's kitchen is a hot, busy place, the great iron <feature>range</feature> glowing and a
   rack of copper pots hung gleaming above a worktable floured and nicked from
   long use. Strings of onions and dried herbs sway from the rafters, a kettle
   mutters on the hob, and whatever is in the oven smells like it is worth
   waiting for. This is the best hearth to cook at in the village; the common
-  room lies back through the doorway south.
+  room lies back through the doorway <exit>south</exit>.
 exits:
   south: inn-common-room
 terrain: indoors

@@ -2,15 +2,15 @@ id: wisdoms-cottage
 area: emonds-field
 name: "{g}The Wisdom's Cottage{x}"
 description: |
-  A snug thatched cottage sits at the village edge behind a neat herb garden,
+  A snug thatched cottage sits at the village edge behind a neat <feature>herb garden</feature>,
   the beds laid out in tidy rows and the air sharp with the green smell of
   growing things — marjoram and feverbane, sounder's root and a dozen others a
   body would want to know the names of before falling ill. This is the
   Wisdom's house, where the village comes to be healed, to have the weather
   foretold, and to be told plain truths it would rather not hear. The Green
   cottage sits a little apart on the western edge of the village; the Quarry
-  Road lies back to the south, and the village sickhouse stands close by to the
-  east.
+  Road lies back to the <exit>south</exit>, and the village sickhouse stands close by to the
+  <exit>east</exit>.
 exits:
   south: quarry-road
   east: the-sickhouse

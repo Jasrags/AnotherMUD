@@ -3,10 +3,10 @@ area: watch-hill
 name: "{y}Watch Hill — the Goose and Crown{x}"
 description: |
   The Goose and Crown is a low, dark, comfortable room, smaller than the
-  Winespring Inn and the prouder of it, with a good fire and a smell of stew
+  Winespring Inn and the prouder of it, with a good <feature>fire</feature> and a smell of stew
   that has been going since morning. A few farmers nurse mugs in the corners and
   size you up with the frank curiosity of people who do not see many strangers.
-  The green lies back out to the west.
+  The green lies back out to the <exit>west</exit>.
 exits:
   west: watch-hill-green
 terrain: indoors

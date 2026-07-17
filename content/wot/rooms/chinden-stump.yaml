@@ -2,14 +2,14 @@ id: chinden-stump
 area: stedding-chinden
 name: "{g}The Stump of Stedding Chinden{x}"
 description: |
-  At the heart of the stedding stands the Stump — the hollowed remnant of a tree
+  At the heart of the stedding stands the <feature>Stump</feature> — the hollowed remnant of a tree
   so vast that a ring of Ogier may sit in council within its open bole, its
   rim worn to a soft sheen by generations of broad hands. Around it the ground is
   swept earth and moss, shaded by trees grown in deliberate, graceful order, and
   the stillness here is total: no bird startles, no wind hurries, and a channeler
   would feel the One Power simply gone, beyond any reaching. Mounded dwellings rise
-  to the north, a singing-grove lies west, gardens open south, and the threshold
-  stone stands east.
+  to the <exit>north</exit>, a singing-grove lies <exit>west</exit>, gardens open <exit>south</exit>, and the threshold
+  stone stands <exit>east</exit>.
 exits:
   east: the-elders-stone
   north: chinden-dwellings

@@ -2,14 +2,14 @@ id: the-forge
 area: emonds-field
 name: "{r}The Smithy{x}"
 description: |
-  The village smithy stands open to the lane on its eastern side, the forge
-  fire banked to a sullen orange glow and the anvil squatting black and
+  The village smithy stands open to the lane on its eastern side, the <feature>forge</feature>
+  fire banked to a sullen orange glow and the <feature>anvil</feature> squatting black and
   scarred in the middle of the dirt floor. Tongs and hammers hang in ranks
   along the wall, a barrel of quenching water steams faintly, and finished
   work — hinges, harrow-teeth, a scythe blade — is stacked to one side waiting
   to be claimed. Heat rolls off the coals in a wave. The smithy stands at the
   western edge of the village where the Quarry Road begins; the road runs back
-  east toward the Green, and west it runs on out of the village into the
+  <exit>east</exit> toward the Green, and <exit>west</exit> it runs on out of the village into the
   Westwood.
 exits:
   east: quarry-road

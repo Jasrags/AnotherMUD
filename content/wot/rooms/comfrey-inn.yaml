@@ -3,12 +3,12 @@ area: comfrey
 name: "{y}Comfrey — the Miner's Rest{x}"
 description: |
   The Miner's Rest is a small, snug, smoke-darkened inn, its one low room warm
-  with a roaring peat fire and crowded of an evening with shepherds and miners
+  with a roaring <feature>peat fire</feature> and crowded of an evening with shepherds and miners
   come down off the heights, their talk a slow burr of weather and lost sheep and
   the doings of a world that reaches them late and secondhand. The innkeeper draws
-  a dark mountain ale and serves a thick mutton stew, and watches a stranger with
+  a dark mountain ale and serves a thick <feature>mutton stew</feature>, and watches a stranger with
   frank, unhurried curiosity. The green and the mountain wind lie back out to the
-  south.
+  <exit>south</exit>.
 exits:
   south: comfrey-green
 terrain: indoors

@@ -3,11 +3,11 @@ area: watch-hill
 name: "{y}Watch Hill — the Lookout{x}"
 description: |
   The crown of the hill is bare but for a weathered post and a heap of stones —
-  the makings of a beacon fire, kept ready out of old habit and old fear. From
+  the makings of a <feature>beacon</feature> fire, kept ready out of old habit and old fear. From
   here the whole northern Two Rivers opens out below: pasture and hedge running
   away to the line of the Taren, and the dark smudge of the Mountains of Mist off
-  to the west. The village green lies back down the slope to the south; the North
-  Road runs on toward the river and the ferry away to the north.
+  to the west. The village green lies back down the slope to the <exit>south</exit>; the North
+  Road runs on toward the river and the ferry away to the <exit>north</exit>.
 exits:
   south: watch-hill-green
   north: taren-road

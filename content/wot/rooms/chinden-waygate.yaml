@@ -4,11 +4,11 @@ name: "{g}The Overgrown Waygate{x}"
 description: |
   Set into a low rise at the grove's edge stands a slab of silvery metal twice
   the height of a tall man, its surface a single carved thicket of vine and leaf
-  so fine and so deep it seems to stir at the corner of the eye. A Waygate — one
+  so fine and so deep it seems to stir at the corner of the eye. A <feature>Waygate</feature> — one
   of the old roads the Ogier made in the Breaking — but the trefoil Avendesora
   leaf that would open it is gone, prised loose and hidden, and ivy has grown
   thick across the silver. The Ogier have not walked the Ways since they turned
-  foul, and they do not mean to open this one. The grove lies back south.
+  foul, and they do not mean to open this one. The grove lies back <exit>south</exit>.
 exits:
   south: chinden-grove
 terrain: forest

@@ -3,11 +3,11 @@ area: comfrey
 name: "{g}Comfrey{x}"
 description: |
   The hamlet of Comfrey is a huddle of low stone houses with steep slate roofs
-  set about a patch of cropped green, hunkered down out of the mountain wind in
+  set about a patch of cropped <feature>green</feature>, hunkered down out of the mountain wind in
   its sheltered fold. Smoke streams flat from the chimneys, sheep crop the
   verges, and a small stone inn faces the green with a welcome glow at its
-  windows. The road down to Baerlon falls away south; north stands the inn, and
-  west a steep miners' track climbs on into the high passes of the Mountains of
+  windows. The road down to Baerlon falls away <exit>south</exit>; <exit>north</exit> stands the inn, and
+  <exit>west</exit> a steep miners' track climbs on into the high passes of the Mountains of
   Mist.
 exits:
   south: the-mist-road

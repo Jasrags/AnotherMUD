@@ -3,10 +3,10 @@ area: market-sheran
 name: "{g}Market Sheran — the East Road{x}"
 description: |
   The last houses of Market Sheran thin out at the eastern edge of the village,
-  giving way to orchard and hedge and the open road beyond. A waymarker stone
+  giving way to orchard and hedge and the open road beyond. A <feature>waymarker stone</feature>
   stands at the verge, its cut letters worn but readable: CARYSFORD, and below
   it, CAEMLYN — the Queen's city, and the end of the long road east. The green
-  and the village lie back west; the Caemlyn Road runs on east toward the ford
+  and the village lie back <exit>west</exit>; the Caemlyn Road runs on <exit>east</exit> toward the ford
   at Carysford.
 exits:
   west: the-sheran-green

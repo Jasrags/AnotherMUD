@@ -4,10 +4,10 @@ name: "{g}The Fen Edge{x}"
 description: |
   The firm grazing-land of Deven Ride gives out all at once, and the ground
   turns soft and treacherous underfoot, tufted with rushes and bright cushions
-  of moss that hide black water between them. The first true reeds stand ahead,
+  of moss that hide black water between them. The first true <feature>reeds</feature> stand ahead,
   higher than a man, and the smell of the place changes here — green going over
   to rot, the cool breath of standing water. A trapper's narrow path threads off
-  east into the beds; the dry pasture and the sheepfold lie back west.
+  <exit>east</exit> into the beds; the dry pasture and the sheepfold lie back <exit>west</exit>.
 exits:
   west: deven-ride-fold
   east: the-reed-beds
