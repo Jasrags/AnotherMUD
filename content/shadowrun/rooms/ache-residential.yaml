@@ -5,8 +5,9 @@ description: |
   The housing floors: a canyon of stacked hab-units behind numbered doors, laundry
   strung across the light-wells, the corridor humming with a hundred trid-feeds
   bleeding through walls thin as paper. Wageslaves live their whole lives in here —
-  cradle to contract to urn — and never step outside the shell. The elevator bank
-  waits at the corridor's end; the fire stairs run up and down beside it.
+  cradle to contract to urn — and never step outside the shell. The <feature>elevator bank</feature>
+  waits at the corridor's end; the fire stairs run <exit>up</exit> and
+  <exit>down</exit> beside it.
 terrain: indoors
 exits:
   up: ache-corporate

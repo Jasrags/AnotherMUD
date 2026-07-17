@@ -6,7 +6,7 @@ description: |
   together from shipping containers where runners, gangers, and worse drink under
   an unspoken truce. The bouncer is a troll with a shock-maul and no sense of
   humour; the drinks are cold and the ears are everywhere. A fixer holds a booth
-  in the back. Touristville's strip is back through the door to the west.
+  in the back. Touristville's strip is back through the <feature>door</feature> to the <exit>west</exit>.
 # Interior: shielded from weather + time, and pinned lit so the bar reads at any
 # hour (like Dante's / the Big Rhino).
 terrain: indoors

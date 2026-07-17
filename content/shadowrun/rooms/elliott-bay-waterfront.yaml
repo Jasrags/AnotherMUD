@@ -5,10 +5,10 @@ description: |
   The city gives way to grey water and greyer sky at the edge of Elliott Bay.
   Container cranes stand skeletal against the clouds, gulls wheel over the
   pilings, and the wharf smells of salt, diesel, and rotting kelp. A moored
-  cargo barge creaks against its lines while dockworkers pretend not to watch
+  <feature>cargo barge</feature> creaks against its lines while dockworkers pretend not to watch
   who comes and goes — the waterfront runs on freight that never troubles a
-  manifest. Westlake Plaza and the towers lie back to the east, and the wharf
-  road runs south toward the SODO flats and the I-5 interchange.
+  manifest. Westlake Plaza and the towers lie back to the <exit>east</exit>, and the wharf
+  road runs <exit>south</exit> toward the SODO flats and the I-5 interchange.
 terrain: sprawl
 exits:
   east: westlake-plaza

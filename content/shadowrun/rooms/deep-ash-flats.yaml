@@ -5,7 +5,7 @@ description: |
   The strip's edge falls away into open ash barrens. Grey powder drifts to the
   knee and warm ground vents sulphur through it in slow acrid plumes; every breath
   is a decision. Rainier looms sunless to the south. The strip's lights are a
-  smudge back east; the flats only deepen west, toward the vents where the smoke
+  smudge back <exit>east</exit>; the flats only deepen <exit>west</exit>, toward the <feature>vents</feature> where the smoke
   is thickest.
 terrain: ashfall
 exits:

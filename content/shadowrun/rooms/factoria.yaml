@@ -5,9 +5,9 @@ description: |
   Where the I-90 bridge lands on the Eastside the enclave keeps its rough edge:
   Factoria, a commercial fringe of big-box logistics and mid-tier office glass,
   the most accessible corner of Bellevue and the one place the wall lets working
-  people through. SIN-scanners flank every doorway; a Knight Errant cruiser idles
-  at the ramp. The bridge runs back west to the city; Bellevue's manicured core
-  rises north.
+  people through. <feature>SIN-scanners</feature> flank every doorway; a <threat>Knight Errant cruiser</threat> idles
+  at the ramp. The bridge runs back <exit>west</exit> to the city; Bellevue's manicured core
+  rises <exit>north</exit>.
 terrain: corp-enclave
 exits:
   west: lake-washington-bridge

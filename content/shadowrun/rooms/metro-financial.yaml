@@ -4,9 +4,10 @@ name: "{c}Metro — Financial District Station{x}"
 description: |
   A tiled platform beneath the corporate canyon, humming with the ozone breath of
   the tunnels. Ad-holos flicker along the far wall above a strip of worn safety
-  paint, and a transit board maps the line: Financial District — Pike — Waterfront,
-  and back again. Stairs climb up to Fifth Avenue. The train doors open on the
-  north edge of the platform when a train is in — step `north` to board.
+  paint, and a <feature>transit board</feature> maps the line: Financial District —
+  Pike — Waterfront, and back again. Stairs climb <exit>up</exit> to Fifth Avenue.
+  The train doors open on the north edge of the platform when a train is in — step
+  <cmd>`north`</cmd> to board.
 terrain: indoors
 # `up` surfaces on Fifth Avenue; the north exit into the train car is a real
 # door the transit service opens only while a train is dwelling here.

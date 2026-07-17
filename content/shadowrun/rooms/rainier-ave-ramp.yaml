@@ -5,10 +5,11 @@ description: |
   The spur that locals still call Rainier Avenue peels off the interstate and
   drops into Renton, a cracked concrete ramp slick with drizzle and old oil. A
   faded UCAS sign — RENTON, POP. it doesn't say — hangs shot-through with rust
-  above a Knight Errant checkpoint that hasn't been staffed in years. West the
-  ramp climbs back to the I-5 deck and the city; east Rainier Avenue runs on into
-  the warehouse flats; and north a quieter access road lifts toward the walled
-  housing at Lake Youngs.
+  above a <feature>Knight Errant checkpoint</feature> that hasn't been staffed in
+  years. <exit>West</exit> the ramp climbs back to the I-5 deck and the city;
+  <exit>east</exit> Rainier Avenue runs on into the warehouse flats; and
+  <exit>north</exit> a quieter access road lifts toward the walled housing at Lake
+  Youngs.
 terrain: industrial
 exits:
   west: i5-south

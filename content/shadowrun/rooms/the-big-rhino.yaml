@@ -5,9 +5,9 @@ description: |
   The ceilings are high and the doorways higher — this is a bar built to troll
   scale, and proud of it. Scarred hardwood tables fill a warm, smoky room where
   orks, trolls, and the metahuman-friendly drink cheap and loud beneath a
-  mounted rhino skull. The welcome here is real, which in Downtown makes it rare.
-  A broad-shouldered bartender works the taps and misses nothing. The door lets
-  back out to Pioneer Square, west.
+  mounted <feature>rhino skull</feature>. The welcome here is real, which in Downtown makes it rare.
+  A broad-shouldered <feature>bartender</feature> works the taps and misses nothing. The door lets
+  back out to Pioneer Square, <exit>west</exit>.
 terrain: indoors
 exits:
   west: pioneer-square

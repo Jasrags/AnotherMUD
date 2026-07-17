@@ -2,13 +2,13 @@ id: greasy-bens
 area: seattle-renton
 name: "{y}Greasy Ben's{x}"
 description: |
-  Half diner, half chop shop, all institution: Greasy Ben's runs a griddle up
-  front and an illegal body shop out back, and the smell of frying soy and hot
+  Half diner, half chop shop, all institution: Greasy Ben's runs a <feature>griddle</feature> up
+  front and an illegal <feature>body shop</feature> out back, and the smell of frying soy and hot
   solder never quite separate. Runners have eaten here for thirty years — the
   booths are patched with duct tape, the coffee is genuinely terrible, and Ben
   will patch a bullet wound or fence you a second-hand cyberarm between orders,
   no names asked. It's neutral ground by long habit; even the gangs eat here
-  without trouble. Rainier Avenue and its noise are back to the north.
+  without trouble. Rainier Avenue and its noise are back to the <exit>north</exit>.
 terrain: industrial
 # Neutral ground by thirty years of habit — nobody starts trouble at Ben's.
 tags: [safe-room, safe]

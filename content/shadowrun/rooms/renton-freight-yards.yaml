@@ -5,9 +5,9 @@ description: |
   Rail spurs braid across a wasteland of gravel and standing water, stacked
   containers rising in rusting canyons that the drizzle turns slick and black.
   This is where the Mafia and the Yakuza quietly move what the manifests don't
-  mention, and where the Blood Mountain Boys claim the ground between shipments —
+  mention, and where the <threat>Blood Mountain Boys</threat> claim the ground between shipments —
   their tags climb every container in dripping red. A shunting locomotive idles
-  somewhere in the maze, unseen. Rainier Avenue lies back west; south the tags
+  somewhere in the maze, unseen. Rainier Avenue lies back <exit>west</exit>; <exit>south</exit> the tags
   grow thicker where the yards bleed into open gang turf.
 terrain: industrial
 exits:

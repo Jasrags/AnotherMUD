@@ -3,9 +3,10 @@ area: seattle-bellevue
 name: "{C}Medina{x}"
 description: |
   Old corporate money hides behind Medina's walls — estates the size of city
-  blocks, drone-patrolled lawns, and a gatehouse of private security who log your
-  approach before you reach the intercom. Uninvited faces are not welcome and
-  rarely get a second warning. Bellevue Square lies back to the west.
+  blocks, drone-patrolled lawns, and a <feature>gatehouse</feature> of
+  <threat>private security</threat> who log your approach before you reach the
+  intercom. Uninvited faces are not welcome and rarely get a second warning.
+  Bellevue Square lies back to the <exit>west</exit>.
 terrain: corp-enclave
 exits:
   west: bellevue-square

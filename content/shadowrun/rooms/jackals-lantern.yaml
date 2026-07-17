@@ -3,12 +3,12 @@ area: seattle-redmond
 name: "{Y}Jackal's Lantern{x}"
 description: |
   Behind a fence of barbed wire and a wall of a hundred guttering jack-o'-lanterns,
-  Jackal's Lantern is the Halloweeners' clubhouse and throne room — a bar bolted
+  Jackal's Lantern is the Halloweeners' clubhouse and throne room — a <feature>bar</feature> bolted
   into a gutted theatre lobby where it is always Halloween and always about to get
   worse. Trophies of past fires hang from the rafters; the jukebox plays screams;
-  and Samhain holds court beneath a chandelier of pumpkins, the Blazer never far
+  and <threat>Samhain</threat> holds court beneath a chandelier of pumpkins, the Blazer never far
   from his hand. Runners come here when they need the Halloweeners — and the ones
-  who come uninvited become part of the decor. The strip is back west.
+  who come uninvited become part of the decor. The strip is back <exit>west</exit>.
 terrain: indoors
 exits:
   west: redmond-hollywood

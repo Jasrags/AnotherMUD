@@ -115,6 +115,14 @@ old five-theme partition left uncovered.
   stun monitor; add an adaptive `[{nuyen}]`/`[{gold}]` segment (pack `CurrencyLabel`)
   gated on economy being active if wanted. Small; no save change. A custom template
   can already do this today via `{?gold}[{gold}]{/gold}`.
+- **Room-description keyword highlighting — WoT content pass (deferred 2026-07-17)** —
+  the highlighting engine shipped (`ui-rendering-help.md` §2.6: `<feature>`/`<exit>`/
+  `<threat>`/`<cmd>` tags + `render.DimWrap` for the dim-light interaction) and the full
+  **Shadowrun** room pass is done. The **WoT pack** (`content/wot/rooms/`) still has
+  plain descriptions — do the same actionable-token markup pass there. Pure content; no
+  engine work. Same rule sheet: tag only what a player can act on (exits that are real
+  exits, examinable features, threats, backtick commands), ~2–6 per room, keep each tag
+  span on one line.
 - **Mail / parcels (addressed items + gold)** — send a message *with attachments*
   (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
   reference.** Today: text-only **offline tells** (M13.2) on the notifications queue; no

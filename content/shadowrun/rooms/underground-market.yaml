@@ -6,10 +6,10 @@ description: |
   scavenged lamps, has become the beating heart of the undercity: stalls of
   salvaged tech and street food crowd both kerbs, orks and trolls and the odd
   human haggling over everything a community needs and half of what it doesn't. A
-  fixer works a crate near the wall, pricing the crowd. The Skraacha keep this
-  quarter safe — nobody starts anything here twice. Stairs climb north-and-up to
-  the surface; the Skraacha hall lies north, a dive east, the old cistern south,
-  and the residential warrens run west into the deeper dark.
+  <feature>fixer</feature> works a crate near the wall, pricing the crowd. The Skraacha keep this
+  quarter safe — nobody starts anything here twice. Stairs climb north-and-<exit>up</exit> to
+  the surface; the Skraacha hall lies <exit>north</exit>, a dive <exit>east</exit>, the old cistern <exit>south</exit>,
+  and the residential warrens run <exit>west</exit> into the deeper dark.
 terrain: underground
 # The community's protected heart — safe-room under Skraacha watch.
 tags: [safe-room, safe]

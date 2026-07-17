@@ -4,9 +4,9 @@ name: "{C}Fifth Avenue{x}"
 description: |
   Glass towers rise sheer on either side, close enough that the avenue feels
   like the bottom of a canyon carved from money. Corporate frontages gleam
-  behind SIN-scanners and turnstile gates; a security drone hovers at the
+  behind <feature>SIN-scanners</feature> and turnstile gates; a <threat>security drone</threat> hovers at the
   intersection, its lens tracking every face. The rain comes down grey between
-  the spires. Westlake Plaza opens to the south, and the avenue climbs on north
+  the spires. Westlake Plaza opens to the <exit>south</exit>, and the avenue climbs on <exit>north</exit>
   toward the walled corporate enclaves.
 terrain: sprawl
 exits:

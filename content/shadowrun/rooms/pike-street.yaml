@@ -6,9 +6,10 @@ description: |
   the wet pavement, and the bass from a dozen clubs thuds up through your boots.
   Hawkers work the crowd with BTL chips and stimpatches, ganger colours mix with
   corp-kid slumming money, and the smell of soy-grilled skewers hangs in the
-  rain. A doorway crowned in flickering hellfire neon marks the entrance to
-  Dante's Inferno to the south; Westlake Plaza lies back to the north, and the
-  strip runs east toward the I-90 on-ramps and the bridge to the Eastside.
+  rain. A <feature>doorway</feature> crowned in flickering hellfire neon marks the
+  entrance to Dante's Inferno to the <exit>south</exit>; Westlake Plaza lies back to
+  the <exit>north</exit>, and the strip runs <exit>east</exit> toward the I-90
+  on-ramps and the bridge to the Eastside.
 terrain: sprawl
 exits:
   north: westlake-plaza

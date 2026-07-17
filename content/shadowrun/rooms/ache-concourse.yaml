@@ -3,14 +3,15 @@ area: seattle-ache
 name: "{C}ACHE — Ground Concourse{x}"
 description: |
   The arcology swallows you whole: a ten-storey atrium of mirrored glass and
-  hanging gardens, escalators threading up into the light, a Knight Errant security
-  desk clocking every face against the SIN registry. The elevator bank waits along
-  the north wall — brushed-steel doors under a floor indicator — and a fire-stair
-  door beside it climbs up. Set into the floor, a welded blast door bears a faded
-  Renraku sigil nobody has bothered to scrape off: the sealed sublevels, untouched
-  since 2059. Fifth Avenue and the rain lie back out to the west. The elevator
-  doors are set in the north wall — step `north` when they stand open, or `call`
-  the car if it's away.
+  hanging gardens, escalators threading up into the light, a <threat>Knight Errant security desk</threat>
+  clocking every face against the SIN registry. The elevator
+  bank waits along the north wall — brushed-steel doors under a floor indicator — and
+  a fire-stair door beside it climbs <exit>up</exit>. Set into the floor, a welded
+  <feature>blast door</feature> bears a faded Renraku sigil nobody has bothered to
+  scrape off: the sealed sublevels, untouched since 2059. Fifth Avenue and the rain
+  lie back out to the <exit>west</exit>. The elevator doors are set in the north wall
+  — step <cmd>`north`</cmd> when they stand open, or <cmd>`call`</cmd> the car if
+  it's away.
 terrain: indoors
 # The elevator doorway ("elevator" -> car, "out" from the car) is bound here at
 # boot by the transit service (default_stop 0). The `up` exit is the FIRE STAIRS —

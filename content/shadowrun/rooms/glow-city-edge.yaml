@@ -2,11 +2,11 @@ id: glow-city-edge
 area: seattle-redmond
 name: "{G}The Edge of Glow City{x}"
 description: |
-  West of the strip the ferrocrete gives way to a dead zone that ticks on a
+  <exit>West</exit> of the strip the ferrocrete gives way to a dead zone that ticks on a
   Geiger counter — the Glow, southeastern Redmond's radioactive scar, where a
   reactor died and never stopped dying. Sickly luminescence bleeds off the
-  rubble, and something mange-ridden and swollen watches from a drainage pipe.
-  Touristville's lights are a relief back to the east.
+  rubble, and something mange-ridden and swollen watches from a <feature>drainage pipe</feature>.
+  Touristville's lights are a relief back to the <exit>east</exit>.
 terrain: barrens
 exits:
   east: touristville

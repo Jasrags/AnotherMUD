@@ -6,10 +6,10 @@ description: |
   flooded service tunnel where the water reaches your shins and the only light is
   what you brought. This is unclaimed ground, past where even the Skraacha bother
   to patrol, and the sounds in the black — skittering, the wet slither of
-  something large, a chorus of hungry squeaks — belong to the devil-rat broods
+  something large, a chorus of hungry squeaks — belong to the <threat>devil-rat broods</threat>
   that nest in the drowned dark. Runners come down here for what people hide where
   no one follows. Most of them come back up. The warrens and the light lie back
-  up above.
+  <exit>up</exit> above.
 terrain: underground
 exits:
   up: the-warrens

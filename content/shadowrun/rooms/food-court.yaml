@@ -5,9 +5,9 @@ description: |
   One level below the concourse, the food court hums under a low ceiling of
   acoustic tile and soft corp-radio: a ring of franchise counters wraps a field
   of bolted-down tables, every surface wiped to a dull shine. SIN-gated families
-  graze on branded soy while private security drifts between the tables without
-  ever quite stopping. The air is fryer oil cut with disinfectant. An escalator
-  climbs back up to the main concourse; off the north end a Stuffer Shack burns
+  graze on branded soy while <threat>private security</threat> drifts between the tables without
+  ever quite stopping. The air is fryer oil cut with disinfectant. An <feature>escalator</feature>
+  climbs back <exit>up</exit> to the main concourse; off the <exit>north</exit> end a <feature>Stuffer Shack</feature> burns
   orange, open all hours and cheaper than anything else down here.
 terrain: indoors
 # The lower level of a policed corp mall: bright and camera-covered, safe-room

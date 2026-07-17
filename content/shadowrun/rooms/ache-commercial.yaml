@@ -5,8 +5,9 @@ description: |
   Three levels of mall opened up under one soaring skylight: soykaf kiosks, racks of
   knock-off electronics, a Stuffer Shack glowing Aztechnology orange, and the drift
   of ten thousand shoppers who never once feel the rain. Muzak and ad-holos wash
-  over everything. The elevator bank opens along one wall beside a floor indicator;
-  the fire-stair door runs both up and down.
+  over everything. The <feature>elevator bank</feature> opens along one wall beside a
+  floor indicator; the <feature>fire-stair door</feature> runs both <exit>up</exit>
+  and <exit>down</exit>.
 terrain: indoors
 exits:
   up: ache-residential

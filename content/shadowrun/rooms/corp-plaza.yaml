@@ -4,8 +4,8 @@ name: "{C}Corporate Plaza{x}"
 description: |
   The sprawl falls away into a manicured plaza of mirrored glass and cold steel.
   A corporate arcology looms overhead, its logo turning slowly against the rain.
-  Security drones drift on patrol, and a guard watches the entrance with the flat
-  patience of someone paid to end trouble. Market Street lies back to the west.
+  <threat>Security drones</threat> drift on patrol, and a <threat>guard</threat> watches the entrance with the flat
+  patience of someone paid to end trouble. Market Street lies back to the <exit>west</exit>.
 terrain: sprawl
 exits:
   west: market-street

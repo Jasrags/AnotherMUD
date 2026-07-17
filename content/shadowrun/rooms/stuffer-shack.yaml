@@ -4,10 +4,10 @@ name: "{Y}Stuffer Shack{x}"
 description: |
   Orange light and the hum of coolers: a Stuffer Shack crammed into a
   lower-concourse corner, open all hours and proud of nothing. A counter of
-  scratched plastic runs one wall, a soykaf machine wheezing beside a heat-lamp
-  tray of soydogs, and chest-high shelves sag under NutriSoy in every number. A
+  scratched plastic runs one wall, a <feature>soykaf machine</feature> wheezing beside a heat-lamp
+  tray of soydogs, and chest-high <feature>shelves</feature> sag under NutriSoy in every number. A
   wageslave works the register behind smeared ballistic glass. Steam and the
-  clatter of fryers drift from the kitchen north, and the franchise opens south
+  clatter of fryers drift from the kitchen <exit>north</exit>, and the franchise opens <exit>south</exit>
   onto the mall food court.
 terrain: indoors
 exits:

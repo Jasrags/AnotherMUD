@@ -4,11 +4,11 @@ name: "{r}Hollywood{x}"
 description: |
   Redmond's entertainment ghetto rots under a sky the colour of a bruise: dead
   movie palaces with their marquees shot out, BTL parlors flickering behind
-  boarded glass, and every third wall scorched black. This is Halloweener ground,
+  boarded glass, and every third wall scorched black. This is <threat>Halloweener</threat> ground,
   and they have decorated it — jack-o'-lanterns leer from every ledge, effigies
   swing from the burnt-out streetlights, and the whole strip stinks of accelerant
-  and old smoke. Sophocles and its fragile order lie back west; Jackal's Lantern
-  burns orange to the east; and north an open lot glows with barrel-fires.
+  and old smoke. Sophocles and its fragile order lie back <exit>west</exit>; Jackal's Lantern
+  burns orange to the <exit>east</exit>; and <exit>north</exit> an open lot glows with barrel-fires.
 terrain: barrens
 exits:
   west: sophocles

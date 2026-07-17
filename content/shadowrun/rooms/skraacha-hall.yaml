@@ -4,11 +4,11 @@ name: "{c}The Skraacha Hall{x}"
 description: |
   What was once a transit substation is now the muster hall of the Skraacha —
   the ork gang that grew into the undercity's militia and, increasingly, its
-  government. Spray-painted murals cover the walls: the fall of the surface
-  ork districts, the digging of the Underground, the faces of the dead. Weapons
-  rack along one wall, and a big scarred warrior holds the room, less a
-  gangbanger than a soldier who has decided what he is defending. This is
-  neutral, watchful ground; the market lies back south.
+  government. Spray-painted <feature>murals</feature> cover the walls: the fall of the surface
+  ork districts, the digging of the Underground, the faces of the dead.
+  <feature>Weapons rack</feature> along one wall, and a big scarred warrior holds the room,
+  less a gangbanger than a soldier who has decided what he is defending. This is
+  neutral, watchful ground; the market lies back <exit>south</exit>.
 terrain: underground
 # Skraacha ground — orderly and defended; a safe-room by their say-so.
 tags: [safe-room, safe]

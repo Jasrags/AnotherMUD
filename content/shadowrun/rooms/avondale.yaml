@@ -2,11 +2,12 @@ id: avondale
 area: seattle-redmond
 name: "{r}Avondale{x}"
 description: |
-  Gang colours drown every wall — the Rusted Stilettos hold Avondale, and they
-  want you to know it. Stripped cars burn at the kerb, ork silhouettes watch from
-  the rooftops, and the air stinks of scorched plastic and cordite. This is the
-  heart of the turf: Rebar holds court here, and nothing near him is friendly.
-  The chop-shop and the only way out lie back to the south.
+  Gang colours drown every wall — the <threat>Rusted Stilettos</threat> hold Avondale,
+  and they want you to know it. Stripped cars burn at the kerb, ork silhouettes watch
+  from the rooftops, and the air stinks of scorched plastic and cordite. This is the
+  heart of the turf: <threat>Rebar</threat> holds court here, and nothing near him is
+  friendly. The <feature>chop-shop</feature> and the only way out lie back to the
+  <exit>south</exit>.
 terrain: barrens
 exits:
   south: stiletto-garage

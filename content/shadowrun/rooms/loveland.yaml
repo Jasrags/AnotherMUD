@@ -5,9 +5,9 @@ description: |
   Puyallup's rough heart of neon and appetite — joygirls and joyboys work the
   doorways, BTL dens flicker behind blacked-out glass, and the whole strip runs
   on a functional, ugly economy that the gangs are smart enough not to burn down.
-  A street doc keeps a stall between the pleasure dens, patching what the night
-  costs. Puyallup City lies north; Hell's Kitchen's cook-smoke drifts in from the
-  east.
+  A <feature>street doc</feature> keeps a stall between the pleasure dens, patching
+  what the night costs. Puyallup City lies <exit>north</exit>; Hell's Kitchen's
+  cook-smoke drifts in from the <exit>east</exit>.
 terrain: barrens
 exits:
   north: puyallup-city

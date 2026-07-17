@@ -6,9 +6,9 @@ description: |
   grey river of tail-lights bleeding out of the city toward the southern sprawls.
   Off-ramps peel away into industrial dark; the reek of the tide flats and diesel
   hangs under the deck. This is where Downtown frays into the barrens beyond — the
-  concrete pillars are tagged with grinning jack-o'-lanterns in dripping orange
-  paint, the Halloweeners marking how far their reach has crept up the 5. Downtown's
-  waterfront is back to the north, and the 5 runs on south toward the valley and
+  <feature>concrete pillars</feature> are tagged with grinning jack-o'-lanterns in dripping orange
+  paint, the <threat>Halloweeners</threat> marking how far their reach has crept up the 5. Downtown's
+  waterfront is back to the <exit>north</exit>, and the 5 runs on <exit>south</exit> toward the valley and
   the Puyallup Barrens.
 terrain: sprawl
 exits:

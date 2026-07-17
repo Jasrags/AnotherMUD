@@ -2,10 +2,10 @@ id: bellevue-way
 area: seattle-bellevue
 name: "{c}Bellevue Way / I-405 North{x}"
 description: |
-  The arterial climbs north out of the enclave and merges onto the 405, six lanes
-  of corp commuters sealed in armoured glass. Sound walls and camera masts line
-  the shoulder; the manicured order thins with every kilometre. Ahead the lights
-  fail and the Redmond Barrens begin. Bellevue Square lies back to the south.
+  The arterial climbs <exit>north</exit> out of the enclave and merges onto the 405,
+  six lanes of corp commuters sealed in armoured glass. Sound walls and camera masts
+  line the shoulder; the manicured order thins with every kilometre. Ahead the lights
+  fail and the Redmond Barrens begin. Bellevue Square lies back to the <exit>south</exit>.
 terrain: corp-enclave
 exits:
   south: bellevue-square

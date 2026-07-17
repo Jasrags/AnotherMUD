@@ -4,9 +4,9 @@ name: "{c}The I-90 Floating Bridge{x}"
 description: |
   The interstate runs out across Lake Washington on pontoons, rain hammering the
   deck and grey chop slapping the concrete below. Behind you the downtown towers
-  wall off the sky to the west; ahead, the Eastside's corporate lights smear the
+  wall off the sky to the <exit>west</exit>; ahead, the Eastside's corporate lights smear the
   far shore, where Bellevue's towers wall off the enclave. The interstate runs on
-  east into Factoria; beyond the corp core the 405 climbs north to the Redmond
+  <exit>east</exit> into Factoria; beyond the corp core the 405 climbs north to the Redmond
   Barrens.
 terrain: sprawl
 exits:

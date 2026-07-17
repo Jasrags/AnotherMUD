@@ -6,7 +6,7 @@ description: |
   drifted knee-deep over whatever used to stand here, still warm in places where
   the earth vents. Nothing grows; the air tastes of sulphur and old smoke, and
   toxic shapes are rumoured to walk the deeper flats. Puyallup City's lights are
-  a smudge back to the east.
+  a smudge back to the <exit>east</exit>.
 terrain: barrens
 exits:
   east: puyallup-city

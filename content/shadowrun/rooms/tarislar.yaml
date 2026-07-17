@@ -3,10 +3,10 @@ area: seattle-puyallup
 name: "{r}Tarislar{x}"
 description: |
   What began as an elven refugee camp hardened into a permanent shantytown —
-  Tarislar, blocks of tarp and salvage where the Ancients fly their colours and
+  Tarislar, blocks of tarp and salvage where the <threat>Ancients</threat> fly their colours and
   outsiders are counted, weighed, and rarely welcomed. Cookfires smoke between
   the tents; hard elven eyes track you from every doorway. Puyallup City lies
-  back to the west.
+  back to the <exit>west</exit>.
 terrain: barrens
 exits:
   west: puyallup-city

@@ -3,9 +3,9 @@ area: seattle
 name: "{c}A Cramped Back Alley{x}"
 description: |
   Dumpsters and stacked shipping crates funnel the rain into black puddles.
-  A maintenance ladder climbs toward a fire escape, and a soy-caf vendor's
-  shuttered cart rusts against the wall. The street corner glows south, past
-  the mouth of the alley.
+  A <feature>maintenance ladder</feature> climbs toward a fire escape, and a soy-caf
+  vendor's <feature>shuttered cart</feature> rusts against the wall. The street corner
+  glows <exit>south</exit>, past the mouth of the alley.
 terrain: sprawl
 exits:
   south: street-corner

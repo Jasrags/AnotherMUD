@@ -3,12 +3,12 @@ area: seattle-ache
 name: "{W}Inside the Elevator{x}"
 description: |
   A brushed-steel box barely wider than its doors, the ceiling a single soft panel
-  of light. A column of floor buttons glows beside the door: {W}[G]{x} Ground,
-  {W}[C]{x} Commercial, {W}[R]{x} Residential, {W}[X]{x} Corporate — `press` a
-  letter for your floor. A mirrored back wall doubles the car and everyone standing
-  in it. A brass plate reads RENRAKU VERTICAL TRANSIT, the corporate logo half
-  polished away by a hundred thousand shoulders. When the doors stand open, `out`
-  steps you onto the floor.
+  of light. A column of <feature>floor buttons</feature> glows beside the door:
+  {W}[G]{x} Ground, {W}[C]{x} Commercial, {W}[R]{x} Residential, {W}[X]{x} Corporate
+  — <cmd>`press`</cmd> a letter for your floor. A mirrored back wall doubles the car
+  and everyone standing in it. A brass plate reads RENRAKU VERTICAL TRANSIT, the
+  corporate logo half polished away by a hundred thousand shoulders. When the doors
+  stand open, <cmd>`out`</cmd> steps you onto the floor.
 terrain: indoors
 # Orphan room: no fixed exits. The transit service binds the car's alight side
 # ("out") to the current floor at runtime, and toggles each floor's north

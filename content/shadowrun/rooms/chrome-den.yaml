@@ -4,11 +4,11 @@ name: "{C}The Chrome Den{x}"
 description: |
   Down a ladder behind Hell's Kitchen's grease and steam, the noise falls away
   into a cellar that smells of antiseptic and hot solder. This is the real thing —
-  not a stall on the strip but a working clinic: a reclaimed dental chair bolted to
-  the floor under a rack of surgical lamps, trays of chrome laid out on sterile
-  cloth, a medtech rig blinking beside a wall of salvaged limbs. A ripperdoc works
-  here, cutting soul into speed for anyone with the nuyen and the nerve. The ladder
-  climbs back up to the kitchens.
+  not a stall on the strip but a working clinic: a reclaimed <feature>dental chair</feature>
+  bolted to the floor under a rack of surgical lamps, trays of chrome laid out on
+  sterile cloth, a <feature>medtech rig</feature> blinking beside a wall of salvaged
+  limbs. A ripperdoc works here, cutting soul into speed for anyone with the nuyen and
+  the nerve. The ladder climbs back <exit>up</exit> to the kitchens.
 # Interior clinic: shielded from weather + the day/night cycle, pinned lit, and a
 # safe-room (a doc who lets fights break out over her table doesn't keep the table).
 terrain: indoors

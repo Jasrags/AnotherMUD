@@ -3,10 +3,10 @@ area: seattle-bellevue
 name: "{C}Hunt's Point{x}"
 description: |
   A gated peninsula of the ultra-wealthy, where private marinas cradle corp
-  yachts and the security is AAA in all but name. Camera domes track the single
+  yachts and the security is AAA in all but name. <feature>Camera domes</feature> track the single
   road in, and the lake laps at manicured seawalls. There is nothing here for a
-  runner but trouble and a very short conversation with someone's bodyguards.
-  Bellevue Square lies back to the east.
+  runner but trouble and a very short conversation with someone's <threat>bodyguards</threat>.
+  Bellevue Square lies back to the <exit>east</exit>.
 terrain: corp-enclave
 exits:
   east: bellevue-square

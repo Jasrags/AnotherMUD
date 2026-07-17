@@ -2,12 +2,12 @@ id: corp-enclave-gate
 area: seattle-downtown
 name: "{C}Corporate Enclave — Turnstile Plaza{x}"
 description: |
-  Past the turnstiles the rain stops — the enclave is roofed in smartglass and
+  Past the <feature>turnstiles</feature> the rain stops — the enclave is roofed in smartglass and
   smells of filtered air and money. Manicured planters, a mirror-still reflecting
-  pool, and not a single face you'd see in the barrens. A ring of SIN-scanners
-  arches the entrance you just cleared; corp-sec in pressed grey watch from
+  pool, and not a single face you'd see in the barrens. A ring of <feature>SIN-scanners</feature>
+  arches the entrance you just cleared; <threat>corp-sec</threat> in pressed grey watch from
   alcoves, unhurried. This is space you are permitted to occupy, and only just.
-  Fifth Avenue and the honest rain lie back to the south.
+  Fifth Avenue and the honest rain lie back to the <exit>south</exit>.
 terrain: sprawl
 # An authored interior override so the roofed enclave reads as lit regardless of
 # the hour (light-and-darkness §9), matching the ache/club interiors.

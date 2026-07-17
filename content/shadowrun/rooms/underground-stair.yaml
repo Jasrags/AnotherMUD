@@ -5,9 +5,9 @@ description: |
   The rusted stairwell from Pioneer Square switchbacks down through cold brick
   into warmth and noise — the temperature climbing with every step, the surface
   drizzle giving way to the close, lived-in air of the undercity. A hand-painted
-  sign over the last landing reads WELCOME TO THE UNDERGROUND in three metatype
+  <feature>sign</feature> over the last landing reads WELCOME TO THE UNDERGROUND in three metatype
   scripts, and a pair of Skraacha lean against the wall below, watching who comes
-  down without troubling anyone who behaves. The steps climb back up to the
+  down without troubling anyone who behaves. The steps climb back <exit>up</exit> to the
   Square and daylight; below, the tunnel opens onto the market's glow and din.
 terrain: underground
 exits:

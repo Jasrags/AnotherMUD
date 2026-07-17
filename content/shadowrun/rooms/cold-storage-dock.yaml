@@ -2,11 +2,11 @@ id: cold-storage-dock
 area: seattle-cold-storage
 name: "{C}The Loading Dock{x}"
 description: |
-  A cavernous loading bay, its roll-door torn half off its track and hanging in a
+  A cavernous loading bay, its <feature>roll-door</feature> torn half off its track and hanging in a
   sheet of ice. Frost furs every surface and your breath hangs in the air — the
   cold rolls out of the dark ahead in a low, hissing fog. Pallets of long-dead
-  refrigeration units line the walls. South, the barrens and the Glow's sickly
-  light; deeper north, the freeze only worsens.
+  refrigeration units line the walls. <exit>South</exit>, the barrens and the Glow's sickly
+  light; deeper <exit>north</exit>, the freeze only worsens.
 terrain: cryo
 exits:
   south: glow-city-edge

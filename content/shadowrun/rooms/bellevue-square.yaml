@@ -4,11 +4,12 @@ name: "{C}Bellevue Square{x}"
 description: |
   The heart of the enclave: a cathedral of retail under a vaulted glass roof,
   where corp families shop behind SIN-gates and private security outnumbers the
-  customers. Everything gleams; nothing is out of place. A Knight Errant officer
-  watches the concourse with unhurried menace. In one corner an escalator drops
-  to the lower food court, where a Stuffer Shack glows orange and open all hours.
-  Factoria lies south, the exec enclaves east and west, and Bellevue Way runs
-  north toward the 405.
+  customers. Everything gleams; nothing is out of place. A <threat>Knight Errant officer</threat>
+  watches the concourse with unhurried menace. In one corner an
+  <feature>escalator</feature> drops to the lower food court, where a Stuffer Shack
+  glows orange and open all hours. Factoria lies <exit>south</exit>, the exec enclaves
+  <exit>east</exit> and <exit>west</exit>, and Bellevue Way runs <exit>north</exit>
+  toward the 405.
 terrain: corp-enclave
 exits:
   south: factoria

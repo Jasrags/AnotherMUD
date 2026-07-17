@@ -5,8 +5,8 @@ description: |
   The deepest reach of the flats, where Rainier's breath comes straight up out of
   the ground: a field of fumaroles hissing yellow sulphur through the ash, the air
   a standing wall of poison. Shapes move in the haze that the smugglers swear are
-  toxic spirits and won't discuss further. Whatever they are, they were here first.
-  The only way back is east.
+  <threat>toxic spirits</threat> and won't discuss further. Whatever they are, they
+  were here first. The only way back is <exit>east</exit>.
 terrain: ashfall
 exits:
   east: deep-ash-flats

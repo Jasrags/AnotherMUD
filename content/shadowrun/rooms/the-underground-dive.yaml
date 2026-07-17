@@ -4,10 +4,10 @@ name: "{y}The Deep Hole{x}"
 description: |
   The Deep Hole is the undercity's own bar, dug into a vaulted cistern chamber
   and run for the community rather than the tourists who never come this far
-  down. Kegs of home-brewed soy beer sweat on the counter, a troll matron works
+  down. Kegs of home-brewed soy beer sweat on the counter, a <feature>troll matron</feature> works
   the taps, and the talk is in three languages and none of it corporate. It is
   the closest thing the Underground has to neutral common ground — a place to
-  hear who's hiring and who's dead. The market's glow spills in from the west.
+  hear who's hiring and who's dead. The market's glow spills in from the <exit>west</exit>.
 terrain: underground
 # The community's common room — safe neutral ground.
 tags: [safe-room, safe]

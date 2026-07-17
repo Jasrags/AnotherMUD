@@ -2,12 +2,12 @@ id: the-warrens
 area: seattle-underground
 name: "{c}The Warrens{x}"
 description: |
-  Past the market the tunnels turn residential and close: coffin bunks stacked in
+  Past the market the tunnels turn residential and close: <feature>coffin bunks</feature> stacked in
   wall niches, cook-fires venting through cracks in the ceiling, whole families
   living in the buried bones of the old city. The strung lamps thin out here and
   the Skraacha patrols come less often; it is still community ground, but the
   edges are fraying, and the deeper you go the more the dark takes over. The
-  market glow lies back east; a flooded service tunnel drops away downward into
+  market glow lies back <exit>east</exit>; a flooded service tunnel drops away downward into
   the unclaimed deep.
 terrain: underground
 exits:

@@ -3,10 +3,10 @@ area: seattle-puyallup
 name: "{Y}Hell's Kitchen{x}"
 description: |
   Against every expectation the food here is good — Hell's Kitchen, a warren of
-  grill stalls and noodle counters where half the metroplex's cuisines steam
+  <feature>grill stalls</feature> and <feature>noodle counters</feature> where half the metroplex's cuisines steam
   under one patched roof, and rival gangers eat elbow to elbow because nobody
   fouls the best kitchen in the Barrens. Warmth, grease-smoke, and the clatter of
-  woks fill the air. Loveland's neon is back through the west door.
+  woks fill the air. Loveland's neon is back through the <exit>west</exit> door.
 # Interior: shielded from weather + time, pinned lit — a warm room at any hour.
 terrain: indoors
 exits:
