@@ -53,8 +53,9 @@ type PromptVitals struct {
 }
 
 // RenderPrompt substitutes {token} placeholders in template with values
-// from v (ui-rendering-help §7.2). Matching is case-insensitive. An
-// empty template uses DefaultPromptTemplate.
+// from v (ui-rendering-help §7.2) and resolves {?name}…{/name} conditional
+// segments (§7.5). Matching is case-insensitive. An empty template uses
+// DefaultPromptTemplate.
 //
 // A recognized token resolves to its integer value. An UNrecognized
 // token (a `{word}` made of ASCII letters that is not in the table)
@@ -64,6 +65,15 @@ type PromptVitals struct {
 // a brace with no close) is left verbatim, so it survives to the color
 // renderer untouched. Prompt templates are expected to color with
 // `<...>` semantic tags, not `{...}` brace shorthand (§7.1).
+//
+// A `{?name}…{/name}` pair is a conditional segment: its body renders
+// only when the character has the named pool (its max > 0), letting a
+// hand-written custom template adapt the way the default does — e.g.
+// `{?stun}<stun>[ST {stun}/{maxstun}]</stun> {/stun}` shows the Stun
+// monitor only for a character that has one. The body is rendered
+// recursively, so tokens, color tags, and nested conditionals of a
+// *different* name compose inside it (same-name nesting is not
+// supported — the first `{/name}` closes). See renderPromptInto.
 func RenderPrompt(template string, v PromptVitals) string {
 	if template == "" {
 		template = DefaultPromptTemplate(v)
@@ -74,6 +84,21 @@ func RenderPrompt(template string, v PromptVitals) string {
 
 	var b strings.Builder
 	b.Grow(len(template) + 8)
+	renderPromptInto(&b, template, v)
+	return b.String()
+}
+
+// renderPromptInto writes the rendered form of template into b. It is the
+// recursive worker behind RenderPrompt: a conditional segment's body is
+// rendered by calling back into this function, so nested constructs of a
+// different name resolve naturally.
+//
+// Recursion depth is bounded by the nesting depth of conditional segments,
+// which is in turn bounded by the template length — every level costs at
+// least a `{?x}` open. The only caller feeds a template capped at
+// command.MaxPromptTemplateLen, so depth is small and there is no internal
+// depth guard. A new caller that is NOT length-capped must add one.
+func renderPromptInto(b *strings.Builder, template string, v PromptVitals) {
 	i := 0
 	for i < len(template) {
 		c := template[i]
@@ -89,16 +114,100 @@ func RenderPrompt(template string, v PromptVitals) string {
 			continue
 		}
 		end += i
-		token := template[i+1 : end]
-		if !isLetters(token) {
+		inner := template[i+1 : end]
+
+		switch {
+		case strings.HasPrefix(inner, "?"):
+			// Conditional open {?name}. Find its matching {/name} close.
+			name := inner[1:]
+			if !isLetters(name) {
+				b.WriteByte('{') // malformed (e.g. {?}, {?1}): leave literal
+				i++
+				continue
+			}
+			lowerName := strings.ToLower(name)
+			// Pair the close case-insensitively, like tokens — {?Stun} pairs
+			// with {/stun}. The matched close is the same length as the open's
+			// name plus the "{/" and "}" (3 bytes), regardless of case.
+			rel := findConditionClose(template[end+1:], lowerName)
+			if rel < 0 {
+				// No matching close: drop the open marker and render the rest,
+				// so a missing close leaves no literal `{?name}` garbage.
+				i = end + 1
+				continue
+			}
+			bodyStart, bodyEnd := end+1, end+1+rel
+			if promptConditionTrue(lowerName, v) {
+				renderPromptInto(b, template[bodyStart:bodyEnd], v)
+			}
+			i = bodyEnd + len(name) + 3
+		case strings.HasPrefix(inner, "/"):
+			// A close tag. A well-formed template's closes are consumed by
+			// their opens above; a stray letters-named close is dropped
+			// (lenient). A non-letter name ({/1}, {/}) is left literal so it
+			// mirrors the malformed-open guard rather than vanishing.
+			if !isLetters(inner[1:]) {
+				b.WriteByte('{')
+				i++
+				continue
+			}
+			i = end + 1
+		case !isLetters(inner):
 			b.WriteByte('{') // not a token shape: leave the '{' literal
 			i++
-			continue
+		default:
+			b.WriteString(promptTokenValue(strings.ToLower(inner), v))
+			i = end + 1
 		}
-		b.WriteString(promptTokenValue(strings.ToLower(token), v))
-		i = end + 1
 	}
-	return b.String()
+}
+
+// findConditionClose returns the index (relative to s) of the first
+// {/name} close tag whose name matches lowerName case-insensitively, or
+// -1 if none. Scanning for closes this way — rather than a fixed-case
+// string search — lets {?Stun} pair with {/stun}.
+func findConditionClose(s, lowerName string) int {
+	from := 0
+	for {
+		rel := strings.Index(s[from:], "{/")
+		if rel < 0 {
+			return -1
+		}
+		open := from + rel
+		closeBrace := strings.IndexByte(s[open:], '}')
+		if closeBrace < 0 {
+			return -1
+		}
+		closeBrace += open
+		if strings.EqualFold(s[open+2:closeBrace], lowerName) {
+			return open
+		}
+		from = open + 2
+	}
+}
+
+// promptConditionTrue reports whether a {?name} conditional segment's body
+// should render: true when the character has the named pool (its max > 0).
+// An unknown name is not a pool the character has, so it is false — the
+// body is hidden. This differs from the unknown-*token* rule (which leaves
+// an empty gap) because a conditional's whole purpose is to suppress a
+// segment for an absent pool; hiding on an unknown name is that contract,
+// not a silent deletion of an otherwise-valid prompt.
+func promptConditionTrue(name string, v PromptVitals) bool {
+	switch name {
+	case "hp":
+		return v.MaxHP > 0
+	case "stun":
+		return v.MaxStun > 0
+	case "mana":
+		return v.MaxMana > 0
+	case "mv":
+		return v.MaxMV > 0
+	case "gold":
+		return v.Gold > 0
+	default:
+		return false
+	}
 }
 
 // promptTokenValue returns the substitution for a lower-cased token, or

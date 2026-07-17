@@ -61,6 +61,14 @@ func PromptHandler(ctx context.Context, c *Context) error {
 	}
 }
 
+// promptSyntaxHint lists the editable tokens and the conditional-segment
+// form (ui-rendering-help §7.2, §7.5) so the feature is discoverable from
+// the `prompt` verb itself — the auto-generated help only carries the
+// verb's Brief/Syntax, not the template grammar.
+const promptSyntaxHint = "Tokens: {hp} {maxhp} {stun} {maxstun} {mana} {maxmana} {mv} {maxmv} {gold}.\r\n" +
+	"Wrap a segment in {?pool}...{/pool} to show it only when you have that pool, " +
+	"e.g. {?stun}[ST {stun}/{maxstun}] {/stun} — pools: hp, stun, mana, mv, gold."
+
 // showPrompt renders the actor's current template (or the default) back
 // to them. Written through the normal output path, so color tags render
 // while `{token}` placeholders stay literal — the player sees the tokens
@@ -68,10 +76,10 @@ func PromptHandler(ctx context.Context, c *Context) error {
 func showPrompt(ctx context.Context, c *Context, ctrl promptController) error {
 	if tpl := ctrl.PromptTemplate(); tpl != "" {
 		return c.Actor.Write(ctx,
-			"Your prompt:\r\n"+tpl+"\r\nUse `prompt default` to reset it.")
+			"Your prompt:\r\n"+tpl+"\r\n"+promptSyntaxHint+"\r\nUse `prompt default` to reset it.")
 	}
 	return c.Actor.Write(ctx,
-		"Your prompt is the default:\r\n"+ctrl.DefaultPromptTemplate()+
+		"Your prompt is the default:\r\n"+ctrl.DefaultPromptTemplate()+"\r\n"+promptSyntaxHint+
 			"\r\nUse `prompt <template>` to change it.")
 }
 

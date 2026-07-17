@@ -95,6 +95,52 @@ func TestDefaultPromptTemplateAdaptive(t *testing.T) {
 	}
 }
 
+// Conditional segments {?name}…{/name} render their body only when the
+// character has the named pool (max > 0), letting a custom template adapt
+// the way the default does (ui-rendering-help §7.5).
+func TestRenderPromptConditionalSegments(t *testing.T) {
+	sam := PromptVitals{HP: 7, MaxHP: 26, MaxStun: 11, Stun: 10, MV: 28, MaxMV: 30} // no mana
+	mage := PromptVitals{HP: 12, MaxHP: 20, MaxMana: 8, Mana: 5, MV: 30, MaxMV: 40} // no stun
+	tests := []struct {
+		name string
+		tmpl string
+		v    PromptVitals
+		want string
+	}{
+		{"present pool renders body", "{?stun}ST {stun}/{maxstun}{/stun}", sam, "ST 10/11"},
+		{"absent pool hides body", "{?mana}MA {mana}/{maxmana}{/mana}", sam, ""},
+		{"absent stun hides for mage", "{?stun}ST {stun}{/stun}", mage, ""},
+		{"present mana renders for mage", "{?mana}MA {mana}/{maxmana}{/mana}", mage, "MA 5/8"},
+		{"surrounding text kept", "a{?mana}X{/mana}b", sam, "ab"},
+		{"surrounding text kept when shown", "a{?stun}X{/stun}b", sam, "aXb"},
+		// Different-name nesting composes via recursion.
+		{"nested different names both present", "{?stun}S{?mana}M{/mana}{/stun}", mage, ""},
+		{"nested outer present inner absent", "{?stun}S{?mana}M{/mana}E{/stun}", sam, "SE"},
+		{"nested both present", "{?stun}S{?mv}M{/mv}{/stun}", sam, "SM"},
+		// Unknown condition hides its body (no such pool).
+		{"unknown condition hides", "x{?money}rich{/money}y", sam, "xy"},
+		// Case-insensitive pairing: {?Stun} pairs with {/stun}, and the
+		// segment stays gated (a mismatch must NOT render unconditionally).
+		{"case-mismatched pair hides when absent", "a{?Stun}X{/stun}b", mage, "ab"},
+		{"case-mismatched pair shows when present", "a{?Stun}X{/STUN}b", sam, "aXb"},
+		// Lenient malformed handling.
+		{"missing close drops marker", "a{?stun}b", sam, "ab"},
+		{"stray close dropped", "a{/stun}b", sam, "ab"},
+		{"malformed open left literal", "{?}", sam, "{?}"},
+		{"non-letter close left literal", "a{/1}b", sam, "a{/1}b"},
+		// gold condition keys on Gold > 0.
+		{"gold present", "{?gold}{gold}nY{/gold}", PromptVitals{Gold: 725}, "725nY"},
+		{"gold absent", "{?gold}{gold}nY{/gold}", PromptVitals{Gold: 0}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RenderPrompt(tt.tmpl, tt.v); got != tt.want {
+				t.Errorf("RenderPrompt(%q) = %q, want %q", tt.tmpl, got, tt.want)
+			}
+		})
+	}
+}
+
 // The prompt's semantic tags must survive RenderPrompt so the color
 // renderer can resolve them afterwards (the two stages compose).
 func TestRenderPromptThenColor(t *testing.T) {

@@ -423,8 +423,17 @@ string with `{token}` placeholders. When unset, a default
 template is used:
 
 ```
-<hp>[HP]: {hp}/{maxhp}</hp> | <mana>...</mana> | <mv>...</mv>>
+<hp>[HP {hp}/{maxhp}]</hp> <stun>[ST ...]</stun> <mana>[MA ...]</mana> <mv>[MV ...]</mv>>
 ```
+
+The default is **adaptive**: a segment for an optional resource
+pool renders only when the character actually has that pool
+(its max > 0). HP and movement always show; the Stun monitor
+and the mana/resource pool show only for a character that has
+one, so a mana-less archetype is not shown a dead `[MA 0/0]`.
+A player-set custom template is not adaptive by default —
+it renders exactly as typed — but §7.5 conditional segments
+let a custom template opt into the same pool-aware behavior.
 
 The template itself uses semantic color tags; the renderer
 processes them later as part of the normal send pipeline.
@@ -438,6 +447,8 @@ The prompt renderer substitutes a fixed set of tokens
 |---|---|
 | `{hp}` | current HP |
 | `{maxhp}` | maximum HP |
+| `{stun}` | current Stun-monitor pool |
+| `{maxstun}` | maximum Stun-monitor pool |
 | `{mana}` | current resource pool |
 | `{maxmana}` | maximum resource pool |
 | `{mv}` | current movement pool |
@@ -510,6 +521,54 @@ the stored template unchanged, to bound abuse.
 - [ ] A template over the configured maximum length is rejected and the
       stored template is unchanged.
 - [ ] Setting or clearing the template persists across logout.
+
+### 7.5 Conditional segments
+
+A template may wrap part of its content in a conditional segment so that
+a hand-written custom template adapts to the character the way the
+default (§7.1) does. The form is a paired marker:
+
+```
+{?name} …body… {/name}
+```
+
+The body renders only when the character **has the named pool** — its
+maximum is greater than zero. `name` is one of the pool tokens (§7.2):
+`hp`, `stun`, `mana`, `mv`, or `gold` (`gold` keys on the current gold
+being greater than zero). For example, a custom template can show the
+Stun monitor only for a character that has one:
+
+```
+<hp>[HP {hp}/{maxhp}]</hp> {?stun}<stun>[ST {stun}/{maxstun}]</stun> {/stun}<mv>[MV {mv}/{maxmv}]</mv>>
+```
+
+Rules:
+
+- The body is rendered normally — tokens (§7.2), color tags (§2), and
+  nested conditional segments of a *different* name all resolve inside
+  it. Nesting two segments of the *same* name is not supported (the
+  first matching `{/name}` closes the outer one).
+- An **unknown** condition name (not a pool the character can have)
+  hides its body. This is deliberate: a conditional exists to suppress
+  a segment for an absent pool, so an unrecognized pool name reads as
+  "absent". (This differs from an unknown *token*, which resolves to an
+  empty gap per §7.2 — a token is expected to produce text, a
+  conditional is expected to gate it.)
+- Matching is case-insensitive, like tokens.
+- Malformed markers are tolerated, never fatal: a `{?name}` with no
+  matching `{/name}` drops the open marker and renders the rest; a
+  `{/name}` with no open is dropped.
+
+**Acceptance criteria**
+
+- [ ] `{?name}…{/name}` renders its body when the named pool's max > 0.
+- [ ] The body is omitted when the named pool is absent (max 0).
+- [ ] Tokens, color tags, and different-name nested segments render
+      correctly inside a shown body.
+- [ ] An unknown condition name hides its body.
+- [ ] A `{?name}` with no close, or a stray `{/name}`, does not corrupt
+      the surrounding prompt.
+- [ ] Condition names are matched case-insensitively.
 
 ---
 
