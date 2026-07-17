@@ -22,3 +22,19 @@ stats:
   body: 2
   agility: 4
   willpower: 3
+# Patch is the trailing guide, so its dialogue is the "what do I do RIGHT NOW"
+# voice — first concrete steps, in a street-kid register — complementing Rook's
+# topical advice (`ask rook about ...`). A bare `ask patch` speaks the intro
+# (talk.go dialogue fallback), so a lost newbie always gets a nudge.
+properties:
+  dialogue:
+    started: "Okay, first run — easy. `look` around so you know where you are. Then `ask rook` — he's got a job for you: gear up east, then down the stairs to the street. I'll be right behind you. Ask me about gear, chrome, the street, or trouble whenever."
+    getting: "First thing? `ask rook` — he's holding a run for you. Gear's east, chrome's west, the street's `down`. Do the run, come back to him for your cut. That's the whole game."
+    gear: "Guns and a jacket through the east door — Rook's dealer's holding a table. `list` what she's got and `buy` a pistol, a spare clip, and something to soak a bullet. Naked runners don't come home."
+    chrome: "Chrome? Doc's in the back, west — cheap starter wares. Watch your Essence on `score` though; every piece you bolt in costs you a little of your soul, and it doesn't grow back."
+    street:
+      - "Down the stairs is Westlake — Downtown, the real sprawl. That's where the work is. Head down when you're geared and I'll stick with you."
+      - "Once you're on the street, find Kestrel at the Big Rhino or keep an ear out for a Johnson — that's how a runner eats. Don't wander into gang turf green."
+    trouble: "If a fight goes bad, `flee`. No shame in it — dead runners don't spend nuyen. Set your `wimpy` so you bug out before the lights go. I don't fight, but I'll keep count of who put you down."
+    me: "Me? I'm Patch. Rook sends me to shadow new blood through their first runs — point you at the fixers, keep you off the wrong turf. `shoo` me if you'd rather walk alone."
+    default: "Lost? `ask rook` about a run to get started, or ask me about gear, chrome, the street, or trouble. Stick close and `look` around."

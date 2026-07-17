@@ -99,7 +99,12 @@ func (m *Manager) SpawnGuideFor(ctx context.Context, a *connActor) {
 	}
 	a.SetLiveGuide(id)
 	name := m.guideName(id)
-	_ = a.Write(ctx, name+" falls into step beside you, ready to show you the ropes. (`shoo` to send them off.)")
+	// Pack-neutral greeting: point the newbie at `look` (always works) and tell
+	// them the guide can be asked, without naming a pack-specific NPC keyword or
+	// command. The concrete first-steps handoff — exact `ask` topics and the
+	// name of the fixer with the first run — lives in the guide's content
+	// dialogue (its `started`/`default` topics) and the spawn room's text.
+	_ = a.Write(ctx, name+" falls into step beside you. \"Stick close — `look` around, and just ask me if you get lost. I'll point you at the work.\" (`shoo` to send them off.)")
 	m.SendToRoom(ctx, room.ID, name+" falls into step beside "+a.Name()+".", a.PlayerID())
 }
 

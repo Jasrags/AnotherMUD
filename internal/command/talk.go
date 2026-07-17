@@ -55,6 +55,14 @@ func TalkHandler(ctx context.Context, c *Context) error {
 
 	switch {
 	case turnedIn == 0 && len(offers) == 0:
+		// No quest to give or turn in — but if this NPC carries dialogue
+		// (a mentor, a guide, a lore-giver), speak its intro so a bare
+		// `ask <npc>` / `talk <npc>` nudges the player toward its topics
+		// instead of dead-ending. Falls back to the old line only for an
+		// NPC with neither quest nor dialogue.
+		if line, ok := npcDialogueIntro(c, npc); ok {
+			return c.Actor.Write(ctx, fmt.Sprintf("<highlight>%s</highlight> says, \"%s\"", capitalize(npc.Name()), line))
+		}
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has nothing for you right now.", capitalize(npc.Name())))
 	case len(offers) == 0:
 		// Only turn-ins happened; the notifier already wrote the completion

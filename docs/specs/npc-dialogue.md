@@ -141,12 +141,29 @@ older behavior where `ask` was a bare alias of `talk`, so a player
 who types `ask bartender` still discovers a quest. Only the
 presence of a topic routes into dialogue.
 
+**Dialogue intro fallback.** When the quest-giver flow has nothing
+to surface (no offers, no ready turn-ins) *and* the NPC carries a
+dialogue table, the no-topic `ask`/`talk` speaks the table's **intro
+line** instead of the flat "nothing for you" refusal — a nudge that
+lets a dialogue NPC (a mentor, a guide, a lore-giver) point the
+player at its topics. The intro line is the first present of a small
+reserved key priority — `greeting`, `started`, `getting`, `hello` —
+falling back to the shared fallback topic (§7). An NPC with a quest
+to surface still shows the quest flow; an NPC with neither quest nor
+dialogue still returns the nothing-to-say refusal. This keeps the
+verb boundary — topic → dialogue, no-topic → quest — while making a
+bare `ask <mentor>` helpful for onboarding rather than a dead end.
+
 ### Acceptance — dispatch
 
 - [ ] `ask <npc> about <topic>` with a matched topic speaks the
       topic's line.
 - [ ] `ask <npc>` with no "about" clause behaves identically to
       `talk <npc>` (quest offers / turn-in).
+- [ ] A no-topic `ask`/`talk` at an NPC with no quest to surface but
+      a dialogue table speaks the table's intro line (reserved-key
+      priority, then fallback topic), not the "nothing for you"
+      refusal.
 - [ ] `ask <npc> about` with an empty topic returns a prompt and
       does not speak a line.
 - [ ] An unresolved NPC term returns the no-such-NPC response and

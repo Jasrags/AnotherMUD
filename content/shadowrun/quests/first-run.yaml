@@ -1,0 +1,36 @@
+# "First Run" — Rook's onboarding quest (quests spec). The first call to action a
+# new runner gets: the fixer in the Flop hands it out on `ask rook` / `talk rook`.
+# A single low-risk `visit` objective that teaches the core loop (accept → do →
+# reward) and the two things a green runner must learn on day one — gear up at the
+# dealer's table (east) and take the stairs `down` into Downtown. Completes on
+# arrival at Westlake Plaza (turn_in defaults false — no return trip), pays seed
+# nuyen so they can afford starter gear, and the offer/hint hand them off to the
+# real quest ladder (Kestrel, the Johnsons). Non-repeatable, so it stops offering
+# once done. Unqualified ids resolve against the shadowrun namespace at load.
+id: first-run
+name: First Run
+classification: main
+giver: fixer-mentor
+offer: >-
+  "You want work? First you prove you can cross the sprawl without getting
+  yourself killed. My dealer's holding a table through the east door — gear up,
+  a pistol and a jacket at least. Then take the stairs down to Westlake Plaza;
+  that's Downtown, where the real jobs are. Get there in one piece and the first
+  cut's on me. Once you're on the street, find Kestrel at the Big Rhino or listen
+  for a Johnson. Go on — Patch'll shadow you."
+# Auto-grant on arrival (turn_in defaults false): reaching the street IS the run.
+abandonable: true
+stages:
+  - id: hit-the-street
+    description: Gear up at the fixer's table, then take the stairs down to Westlake Plaza in Downtown.
+    hint: The gun table is `east`; the stairs `down` from the Flop drop you at Westlake Plaza. Buy a weapon and armor before you go — `list` and `buy` at the table.
+    objectives:
+      - type: visit
+        target: westlake-plaza
+        description: Make it down to Westlake Plaza in one piece.
+reward:
+  xp: 50
+  gold: 500
+  faction:
+    - faction: the-streets
+      delta: 50

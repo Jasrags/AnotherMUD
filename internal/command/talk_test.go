@@ -93,6 +93,45 @@ func TestTalk_TurnsInReadyQuest(t *testing.T) {
 	}
 }
 
+// TestTalk_DialogueNPCSpeaksIntro covers the onboarding fallback: a bare
+// `talk`/`ask` at an NPC that has no quest to give or turn in, but DOES carry
+// a `dialogue` property, speaks its intro (a `started`/`default` topic) instead
+// of dead-ending on "nothing for you right now". This is what makes `ask rook`
+// / `ask patch` helpful for a new player.
+func TestTalk_DialogueNPCSpeaksIntro(t *testing.T) {
+	svc := offerSvc(t) // its only quest is given by core:master, not core:mentor
+	room := &world.Room{ID: "x:1", Name: "Square"}
+	store := entities.NewStore()
+	place := entities.NewPlacement()
+	npc, err := store.SpawnMob(&mob.Template{
+		ID: "core:mentor", Name: "Rook", Type: "npc",
+		Keywords: []string{"rook", "mentor"},
+		Properties: map[string]any{
+			"dialogue": map[string]any{
+				"started": "First run? Ask me about gear, chrome, or the streets.",
+				"default": "I deal in work and advice, not small talk.",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	place.Place(npc.ID(), room.ID)
+	a := newNamedTestActor("Hero", "p1", room)
+	c := &command.Context{Actor: a, Quests: svc, Items: store, Placement: place, Args: []string{"rook"}}
+
+	if err := command.TalkHandler(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	out := a.lastLine()
+	if strings.Contains(out, "nothing for you") {
+		t.Errorf("dialogue NPC should not dead-end; got %q", out)
+	}
+	if !strings.Contains(out, "Rook") || !strings.Contains(out, "says") || !strings.Contains(out, "Ask me about gear") {
+		t.Errorf("want Rook's intro spoken; got %q", out)
+	}
+}
+
 func TestTalk_NoNPC(t *testing.T) {
 	svc := offerSvc(t)
 	c, a, _ := talkRig(t, svc)

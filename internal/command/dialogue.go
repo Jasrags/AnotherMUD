@@ -71,16 +71,50 @@ func AskHandler(ctx context.Context, c *Context) error {
 // "default" entry. Returns ("", false) when the mob has no dialogue,
 // the topic is unknown, and there is no default.
 func dialogueLine(c *Context, npc *entities.MobInstance, topic string) (string, bool) {
-	raw, ok := npc.Property("dialogue")
-	if !ok {
-		return "", false
-	}
-	m, ok := raw.(map[string]any)
+	m, ok := dialogueMap(npc)
 	if !ok {
 		return "", false
 	}
 	if val, ok := lookupTopic(m, topic); ok {
 		return pickLine(c, val), true
+	}
+	if val, ok := lookupTopic(m, "default"); ok {
+		return pickLine(c, val), true
+	}
+	return "", false
+}
+
+// dialogueMap returns the mob's content-authored `dialogue` property as a
+// topic->line map, or (nil, false) when the mob has no dialogue or it is the
+// wrong shape. Shared by dialogueLine (topic lookup) and npcDialogueIntro
+// (intro lookup) so the property fetch + type assertion lives in one place.
+func dialogueMap(npc *entities.MobInstance) (map[string]any, bool) {
+	raw, ok := npc.Property("dialogue")
+	if !ok {
+		return nil, false
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	return m, true
+}
+
+// npcDialogueIntro resolves an NPC's opening line for a bare `ask`/`talk`
+// with no "about <topic>" and no quest to offer — so a dialogue-carrying NPC
+// nudges the player toward its topics instead of dead-ending on "nothing for
+// you right now" (the TalkHandler fallthrough). Tries a small priority list of
+// intro keys, then the shared "default". Returns ("", false) when the mob has
+// no usable dialogue, in which case the caller keeps the old message.
+func npcDialogueIntro(c *Context, npc *entities.MobInstance) (string, bool) {
+	m, ok := dialogueMap(npc)
+	if !ok {
+		return "", false
+	}
+	for _, key := range []string{"greeting", "started", "getting", "hello"} {
+		if val, ok := lookupTopic(m, key); ok {
+			return pickLine(c, val), true
+		}
 	}
 	if val, ok := lookupTopic(m, "default"); ok {
 		return pickLine(c, val), true
