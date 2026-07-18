@@ -19,6 +19,7 @@ const el = {
   terminal: $("terminal"),
   inputForm: $("input-form"),
   cmd: $("cmd"),
+  completeList: $("complete-list"),
   sendBtn: $("send-btn"),
   identity: $("p-identity"),
   identName: $("ident-name"),
@@ -989,6 +990,7 @@ function connect(url) {
   };
   socket.onclose = (ev) => {
     conn.socket = null;
+    closeComplete();
     setConnected(false);
     if (el.status.dataset.state !== "error") setStatus("offline", "Offline");
     writeSys(`Disconnected${ev.reason ? " — " + ev.reason : ""}.`);
@@ -1005,6 +1007,162 @@ function sendCommand(text) {
   writeLocalEcho(el.cmd.type === "password" ? "•".repeat(Math.min(text.length, 12)) : text);
 }
 
+function sendGmcp(pkg, data) {
+  if (!conn.socket || conn.socket.readyState !== WebSocket.OPEN) return;
+  conn.socket.send(JSON.stringify({ type: "gmcp", package: pkg, data }));
+}
+
+/* ── Autocomplete (Input.Complete GMCP, tab-completion §12/§13) ──
+ * The server owns completion; this client only *requests* the candidate set
+ * for the token under the caret and renders it. Requests are debounced so we
+ * stay under the server's per-connection inbound-GMCP rate limit. Keyboard:
+ * when the dropdown is open, ↑/↓ navigate, Tab completes (common prefix first,
+ * then the selected/first candidate), Esc closes, and Enter accepts only if the
+ * user explicitly navigated — otherwise Enter submits the command as normal, so
+ * the command line never gets slower. */
+const comp = { open: false, items: [], sel: -1, common: "", reqLine: "", timer: 0 };
+const COMPLETE_DEBOUNCE_MS = 120;
+
+// The command line up to the caret — exactly what the server completes (§13).
+function lineToCursor() {
+  return el.cmd.value.slice(0, el.cmd.selectionStart ?? el.cmd.value.length);
+}
+// Start index of the whitespace-delimited token under the caret (mirrors the
+// server's lastToken semantics), so an accepted value replaces that token.
+function tokenStart(line) {
+  const i = line.lastIndexOf(" ");
+  return i < 0 ? 0 : i + 1;
+}
+
+function requestComplete(immediate) {
+  clearTimeout(comp.timer);
+  if (!conn.socket || el.cmd.type === "password") return closeComplete();
+  const line = lineToCursor();
+  if (!line.trim()) return closeComplete();
+  comp.reqLine = line;
+  const fire = () => sendGmcp("Input.Complete", { line: comp.reqLine });
+  if (immediate) fire();
+  else comp.timer = setTimeout(fire, COMPLETE_DEBOUNCE_MS);
+}
+
+function onCompleteList(d) {
+  // Drop a stale/late reply: it must match the last request AND still match
+  // what's under the caret right now — so a reply that lands after the dropdown
+  // was dismissed (Esc / submit / blur) or after the caret moved can't re-open
+  // or mis-populate the list.
+  if (!d || d.line !== comp.reqLine || d.line !== lineToCursor()) return;
+  const items = Array.isArray(d.candidates) ? d.candidates : [];
+  if (!items.length) return closeComplete();
+  comp.items = items;
+  comp.common = d.common || "";
+  comp.sel = -1;
+  comp.open = true;
+  renderComplete();
+}
+gmcpHandlers["Input.Complete.List"] = onCompleteList;
+
+function renderComplete() {
+  el.completeList.innerHTML = comp.items
+    .map((c, i) => {
+      const sel = i === comp.sel;
+      const kind = c.kind
+        ? `<span class="complete-kind">${escapeHtml(c.kind)}</span>`
+        : "";
+      const disp =
+        c.display && c.display !== c.value
+          ? `<span class="complete-disp">${escapeHtml(c.display)}</span>`
+          : "";
+      return `<li class="complete-item${sel ? " is-sel" : ""}" role="option" aria-selected="${sel}" data-val="${escapeHtml(c.value)}"><span class="complete-val">${escapeHtml(c.value)}</span>${disp}${kind}</li>`;
+    })
+    .join("");
+  el.completeList.hidden = false;
+  el.cmd.setAttribute("aria-expanded", "true");
+}
+
+function closeComplete() {
+  clearTimeout(comp.timer);
+  comp.open = false;
+  comp.items = [];
+  comp.sel = -1;
+  comp.common = "";
+  comp.reqLine = ""; // so an in-flight reply can't re-open a dismissed dropdown
+  el.completeList.hidden = true;
+  el.completeList.innerHTML = "";
+  el.cmd.setAttribute("aria-expanded", "false");
+}
+
+function moveSel(delta) {
+  const n = comp.items.length;
+  if (!n) return;
+  comp.sel = comp.sel < 0 ? (delta > 0 ? 0 : n - 1) : (comp.sel + delta + n) % n;
+  renderComplete();
+  const li = el.completeList.children[comp.sel];
+  if (li) li.scrollIntoView({ block: "nearest" });
+}
+
+// Replace the caret's token with `value`; addSpace appends a trailing space so
+// the next argument can be typed straight away (shell-style on a full accept).
+function insertToken(value, addSpace) {
+  const full = el.cmd.value;
+  const caret = el.cmd.selectionStart ?? full.length;
+  const head = full.slice(0, caret);
+  const tail = full.slice(caret);
+  const start = tokenStart(head);
+  // Consume the rest of the word after the caret too, so completing mid-word
+  // (`get sw|ord` → accept `sword`) yields `get sword `, not `get sword ord`.
+  const tailWord = (tail.match(/^\S*/) || [""])[0];
+  const insert = value + (addSpace ? " " : "");
+  el.cmd.value = head.slice(0, start) + insert + tail.slice(tailWord.length);
+  const pos = start + insert.length;
+  el.cmd.setSelectionRange(pos, pos);
+}
+
+function acceptCandidate(idx) {
+  const c = comp.items[idx >= 0 ? idx : 0];
+  if (!c) return;
+  insertToken(c.value, true);
+  closeComplete();
+}
+
+// Tab: if the longest-common-prefix extends the typed token and the user hasn't
+// picked a specific item, complete to the common prefix first (§12); otherwise
+// accept the selected (or first) candidate.
+function tabComplete() {
+  const head = lineToCursor();
+  const token = head.slice(tokenStart(head));
+  if (
+    comp.sel < 0 &&
+    comp.common.length > token.length &&
+    comp.common.startsWith(token)
+  ) {
+    insertToken(comp.common, false);
+    requestComplete(true); // refine the list against the extended token
+    return;
+  }
+  acceptCandidate(comp.sel);
+}
+
+el.cmd.addEventListener("input", () => requestComplete(false));
+
+// mousedown (not click) so the accept runs before the input's blur fires.
+el.completeList.addEventListener("mousedown", (e) => {
+  const li = e.target.closest(".complete-item");
+  if (!li) return;
+  e.preventDefault();
+  insertToken(li.dataset.val, true);
+  closeComplete();
+  el.cmd.focus();
+});
+
+// Close on blur, but after a beat so a candidate mousedown lands first.
+el.cmd.addEventListener("blur", () => setTimeout(closeComplete, 120));
+
+// A click in the input repositions the caret to a possibly-different token, so
+// the open list is stale — dismiss it (typing will re-request).
+el.cmd.addEventListener("click", () => {
+  if (comp.open) closeComplete();
+});
+
 /* ── Input + history ─────────────────────────────────────────── */
 const history = [];
 let histIdx = -1;
@@ -1020,6 +1178,7 @@ el.inputForm.addEventListener("submit", (e) => {
   const text = el.cmd.value;
   if (!conn.socket) return;
   walkTo = null; // a manual command cancels an in-progress click-to-walk
+  closeComplete();
   sendCommand(text);
   if (text.trim() && el.cmd.type !== "password") {
     history.push(text);
@@ -1030,6 +1189,27 @@ el.inputForm.addEventListener("submit", (e) => {
 });
 
 el.cmd.addEventListener("keydown", (e) => {
+  // Autocomplete steers the keys while the dropdown is open.
+  if (comp.open) {
+    if (e.key === "ArrowDown") return e.preventDefault(), moveSel(1);
+    if (e.key === "ArrowUp") return e.preventDefault(), moveSel(-1);
+    if (e.key === "Tab") return e.preventDefault(), tabComplete();
+    if (e.key === "Escape") return e.preventDefault(), closeComplete();
+    if (e.key === "Enter" && comp.sel >= 0)
+      return e.preventDefault(), acceptCandidate(comp.sel);
+    // Caret-moving keys change which token is under the caret — the current
+    // candidate list is now stale, so dismiss it (let the caret move normally).
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) closeComplete();
+    // Enter with no explicit selection, or typing, falls through.
+  } else if (e.key === "Tab" && el.cmd.type !== "password" && lineToCursor().trim()) {
+    // Closed dropdown: an explicit Tab requests completion immediately.
+    // (Suppressed in password prompts so Tab isn't a focus trap.)
+    e.preventDefault();
+    requestComplete(true);
+    return;
+  }
+
+  // Command history (arrows only reach here when the dropdown isn't open).
   if (e.key === "ArrowUp") {
     if (histIdx > 0) {
       histIdx--;

@@ -16,6 +16,13 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
   command history (↑/↓), local echo, and password masking (WebSocket has no
   telnet echo negotiation, so the client masks locally when the prompt asks for
   a password).
+- **Autocomplete** — server-driven tab-completion over the `Input.Complete` GMCP
+  package (the engine owns the candidate set; the client only requests + renders,
+  debounced to respect the server's inbound-GMCP rate limit). As you type, a
+  dropdown offers verbs/items/entities/doors for the token under the caret;
+  **Tab** completes to the common prefix then accepts, **↑/↓** navigate,
+  **Esc** closes, and **Enter** submits as normal (accepting a suggestion only
+  when you've explicitly arrowed into one, so the command line never slows down).
 - **HUD panels**, driven live by GMCP:
   - **Vitals** — HP + every resource pool from `Char.Vitals`, including the
     generalized `pools` map (a WoT channeler's One Power via `mana`, a Shadowrun

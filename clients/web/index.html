@@ -38,6 +38,13 @@
         <section class="terminal-wrap" aria-label="Game terminal">
           <div id="terminal" class="terminal" role="log" aria-live="polite" tabindex="0"></div>
           <form class="input-bar" id="input-form" autocomplete="off">
+            <ul
+              id="complete-list"
+              class="complete-list"
+              role="listbox"
+              aria-label="Command suggestions"
+              hidden
+            ></ul>
             <span class="prompt-glyph" aria-hidden="true">›</span>
             <input
               id="cmd"
@@ -45,8 +52,12 @@
               type="text"
               spellcheck="false"
               autocapitalize="off"
+              autocomplete="off"
               placeholder="Type a command and press Enter…"
               aria-label="Command input"
+              aria-autocomplete="list"
+              aria-controls="complete-list"
+              aria-expanded="false"
               disabled
             />
             <button class="btn" id="send-btn" type="submit" disabled>Send</button>
