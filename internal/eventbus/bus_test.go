@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -229,6 +230,60 @@ func TestConcurrentSubscribeAndPublish(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+// TestPublishReentrantFromHandler pins the load-bearing property behind
+// productionCombatSink (cmd/anothermud/main.go): a bus handler that itself
+// calls PublishCancellable + Publish from inside its dispatch (the
+// vital-depleted → DeathCheck → Kill chain) must complete without deadlock,
+// and the nested events must be delivered. This is safe because Publish
+// snapshots the subscriber slice under RLock then RELEASES the lock before
+// invoking handlers — so a re-entrant Publish (and even a re-entrant
+// Subscribe) never contends with the outer dispatch. Regression guard for the
+// m7-5 #6 re-entrancy concern; without the snapshot-and-release, a handler
+// that re-enters Publish while a writer waited on the RWMutex could deadlock.
+func TestPublishReentrantFromHandler(t *testing.T) {
+	b := eventbus.New()
+	var outer, precheck, inner atomic.Int64
+
+	b.Subscribe("precheck", func(ctx context.Context, e eventbus.Event) {
+		precheck.Add(1)
+	})
+	b.Subscribe("inner", func(ctx context.Context, e eventbus.Event) {
+		inner.Add(1)
+	})
+	b.Subscribe("outer", func(ctx context.Context, e eventbus.Event) {
+		outer.Add(1)
+		// Re-entrant dispatch from within a handler — mirrors the combat
+		// death sink running a cancellable pre-check then a plain publish.
+		b.PublishCancellable(ctx, newCancellable("precheck"))
+		b.Publish(ctx, testEvent{name: "inner"})
+		// Re-entrant Subscribe is safe too (lock released before dispatch).
+		b.Subscribe("inner", func(context.Context, eventbus.Event) {})
+	})
+
+	// Run the publish on a goroutine with a deadline: the happy path closes
+	// `done` immediately, so this is a deadlock detector, not a timing race.
+	done := make(chan struct{})
+	go func() {
+		b.Publish(context.Background(), testEvent{name: "outer"})
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("re-entrant Publish from a handler deadlocked")
+	}
+
+	if got := outer.Load(); got != 1 {
+		t.Errorf("outer handler fired %d times, want 1", got)
+	}
+	if got := precheck.Load(); got != 1 {
+		t.Errorf("re-entrant PublishCancellable delivered %d times, want 1", got)
+	}
+	if got := inner.Load(); got != 1 {
+		t.Errorf("re-entrant Publish delivered %d times, want 1", got)
+	}
 }
 
 func TestM5EventNames(t *testing.T) {
