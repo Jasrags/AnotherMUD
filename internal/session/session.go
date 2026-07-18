@@ -911,7 +911,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// save so re-adding the race later reattaches the character.
 	// Closes m8-4 "applyClass fail-soft erases saved id" item +
 	// the analogous m8-3 race-side concern in one symmetric fix.
-	if a.raceID != "" && loaded.Player.Race != a.raceID {
+	if shouldSyncRace(a.raceID, loaded.Player.Race) {
 		a.mu.Lock()
 		a.save.Race = a.raceID
 		a.markDirtyLocked()
@@ -936,7 +936,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// Re-sync the save's class list if applyClass dropped a removed-content
 	// id (the resolved list differs from what was loaded). Re-adding the
 	// class later reattaches the character.
-	if len(a.classIDs) > 0 && !slices.Equal(a.classIDs, loaded.Player.Class) {
+	if shouldSyncClass(a.classIDs, loaded.Player.Class) {
 		a.save.Class = append([]string(nil), a.classIDs...)
 		a.markDirtyLocked()
 	}
@@ -6589,6 +6589,26 @@ func applyClass(a *connActor, cfg *Config, saved []string) {
 			a.class = cls // primary class — generated player description (look).
 		}
 	}
+}
+
+// shouldSyncRace reports whether the load-time race sync (run's post-applyRace
+// block) should write the resolved id back to the save. True ONLY when applyRace
+// produced a real id that differs from what was loaded. A fail-soft resolution
+// (resolvedID == "", because the saved race isn't currently registered — content
+// removed between restarts) returns false so the ORIGINAL saved id is PRESERVED;
+// re-adding the race later reattaches the character. This is the m8-4 data-loss
+// guard, extracted from run() so it can be pinned by a unit test.
+func shouldSyncRace(resolvedID, loadedID string) bool {
+	return resolvedID != "" && loadedID != resolvedID
+}
+
+// shouldSyncClass is the class-list analogue of shouldSyncRace: sync only when
+// applyClass resolved at least one id AND the canonical list differs from what
+// was loaded. An empty resolved list (every saved class id is unregistered
+// removed content) returns false, PRESERVING the saved list so re-adding the
+// class later reattaches the character (m8-4 data-loss guard).
+func shouldSyncClass(resolvedIDs, loadedIDs []string) bool {
+	return len(resolvedIDs) > 0 && !slices.Equal(resolvedIDs, loadedIDs)
 }
 
 // applyBackground records the actor's background id from save (backgrounds
