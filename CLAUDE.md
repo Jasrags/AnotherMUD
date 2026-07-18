@@ -254,18 +254,58 @@ examples to mirror: `m0-deferred-fixes.md`, `m1-deferred-fixes.md`,
 
 Each entry in the file should include:
 1. **Severity** (HIGH/MEDIUM/LOW) and short title.
-2. **File:line** pointer to the code in question.
-3. **What's wrong** in one or two sentences.
-4. **Suggested fix** — concrete enough that future-you doesn't have to
+2. **Status** — `FIRED | LATENT | RESOLVED` (see the status rule below).
+3. **File:line** pointer to the code in question.
+4. **What's wrong** in one or two sentences.
+5. **Suggested fix** — concrete enough that future-you doesn't have to
    re-derive the analysis.
-5. **When to fix** — a specific trigger ("next time `session.go` is
-   touched", "before M6", "if the test flakes").
+6. **When to fix** — the **trigger** condition that flips the item from
+   LATENT to FIRED ("next time `session.go` is touched", "before M6", "when a
+   content-declared property must persist"). Every LATENT item MUST name its
+   trigger; an item with no trigger is either FIRED (do it) or shouldn't exist.
 
 Link related deferral files with `[[m1-deferred-fixes]]` so the memory
 graph stays connected.
+
+### Status: FIRED / LATENT / RESOLVED (the anti-drift rule)
+
+Every deferral carries a status, and **only FIRED items are actionable work.**
+This is the single most important field — it is what tells a future session
+"pick this up" vs. "leave it alone" without re-running a whole investigation.
+
+- **FIRED** — the trigger condition is met; the item is real, reachable, and
+  ready to work now. These are the only items that count as "ready to build."
+- **LATENT** — real, but gated behind an unfired trigger (unobservable at
+  current scale, a deliberate conservative choice, or speculative until a
+  consumer exists — the YAGNI cases). **Do NOT build a LATENT item speculatively**
+  just because the design is clear; that is the exact mistake the status guards
+  against. Re-check its trigger before touching it — if the trigger has since
+  fired, flip it to FIRED first.
+- **RESOLVED** — fixed in code. Keep the entry (marked RESOLVED, dated,
+  with the commit / test that closed it) so the same investigation is never
+  repeated; do not silently delete.
+
+**CLOSE-ON-FIX (mandatory).** When a commit resolves a deferral, it MUST flip
+that item's status to **RESOLVED in the same commit** — the code fix and the
+tracking update ship together, never separately. The commit body already names
+the item (`Closes m8-4`); the doc/memory edit is not optional alongside it.
+A fix that lands without closing its entry is how the whole index rots: an item
+stays "open" for weeks, and a later session burns time rediscovering it was
+already done. If you fix something covered by a deferral, grep the deferral id
+and update it before you commit.
+
+**Before working any deferral, VERIFY its status against current code** (the
+memory system-reminder says entries may be stale). If it turns out already
+resolved, mark it RESOLVED (close-on-fix applies to drift you discover, too);
+if its trigger hasn't fired, leave it LATENT and say so rather than building it.
 
 ### When to surface deferrals
 
 - At the start of a new milestone — read the relevant `m<N>-deferred-fixes.md` files first.
 - When editing a file named in a deferral entry — address that entry in the same change if it fits.
 - During "orient me" — call out outstanding deferrals as part of the open edges.
+- **Surface by status:** present **FIRED** items as ready work; mention **LATENT**
+  items only alongside their trigger (so "not yet" is explicit, not an
+  invitation to build); do not list **RESOLVED** items as open. When asked
+  "what's ready to build," the honest answer is the FIRED set — verified, not
+  assumed.
