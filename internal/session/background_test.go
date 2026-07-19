@@ -82,6 +82,37 @@ func TestBackgroundGranter_GrantStartingItems(t *testing.T) {
 	}
 }
 
+// Role×origin skill merge (creation): the class path teaches an overlapping
+// skill at the baseline floor (grantDefaultAbilityProf = 1) BEFORE the background
+// grant runs — the character.created order — and the background's declared
+// proficiency overwrites it. Because the class floor is the minimum and a
+// background clamps to max(prof, 1), the origin's trained value always wins on an
+// overlap (last-wins == higher-wins). Pins that a role+origin overlap doesn't
+// strand the character at the class baseline.
+func TestBackgroundGranter_OriginSkillWinsOverClassFloor(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	mgr.Add(a)
+
+	abilities := progression.NewAbilityRegistry()
+	_ = abilities.Register(&progression.Ability{ID: "perception", Type: progression.AbilityPassive, Category: progression.AbilitySkill, DefaultCap: 100})
+	prof := progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
+
+	// The class path teaches the overlapping skill at the baseline floor first.
+	prof.Learn("p1", "perception", 1)
+
+	// Then the origin grants it at its trained value (mirrors the subscriber order).
+	g := NewBackgroundGranter(mgr, prof, item.NewTemplates(), entities.NewStore(), nil)
+	g.Grant(context.Background(), "p1", &progression.Background{
+		ID:     "corporate-dropout",
+		Skills: []progression.BackgroundSkill{{AbilityID: "perception", Proficiency: 10}},
+	}, BackgroundChoices{})
+
+	if v, ok := prof.Proficiency("p1", "perception"); !ok || v != 10 {
+		t.Errorf("perception = (%d,%v), want (10,true) — origin's trained value must win over the class floor", v, ok)
+	}
+}
+
 func TestBackgroundGranter_DefaultsProficiencyAndSkipsMissing(t *testing.T) {
 	mgr := NewManager()
 	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
