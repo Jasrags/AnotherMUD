@@ -325,6 +325,18 @@ func run() error {
 	// drain). Empty ANOTHERMUD_GUIDE_TEMPLATE (the default) leaves the feature off,
 	// so a world opts in by naming its guide mob; the cap defaults to level 3.
 	mgr.SetGuides(guideSvc, envOr("ANOTHERMUD_GUIDE_TEMPLATE", ""), envIntOr("ANOTHERMUD_GUIDE_LEVEL_CAP", 3))
+	// onboarding-guide.md: the first-entry commlink call — a fixer pings the new
+	// runner's commlink. Opt-in: a world names its fixer NPC via
+	// ANOTHERMUD_COMMLINK_FIXER (empty default = off); the message lives on that
+	// NPC's commlink_welcome property (pack-neutral engine, content message).
+	if fixer := envOr("ANOTHERMUD_COMMLINK_FIXER", ""); fixer != "" {
+		mgr.SetCommlink(&commlinkOnboarding{
+			fixer: fixer,
+			mobs:  registries.Mobs,
+			items: registries.Items,
+			store: entityStore,
+		})
+	}
 	// grouping.md §7: party size cap (ANOTHERMUD_PARTY_CAP, default 6).
 	mgr.SetPartyCap(cfg.PartyCap)
 
@@ -1430,6 +1442,12 @@ func run() error {
 		// (1 feat at character creation). Per-3-levels slots accrue from the
 		// level-up subscriber; background/class feat grants are Phase 5.
 		actor.CreditFeats(1)
+
+		// onboarding-guide.md: the background grant above put a commlink in the
+		// fresh runner's inventory, so deliver the one-time first-entry commlink
+		// call now (the enter-world path ran before the grants, when a new
+		// character's inventory was still empty). Idempotent via the shown-once record.
+		mgr.DeliverCommlinkCallFor(ctx, e.EntityID)
 	})
 
 	// M9.6: render ability resolution outcomes to players. The

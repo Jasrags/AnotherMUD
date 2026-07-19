@@ -1252,6 +1252,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// Post-Add so the actor is placed and the arrival broadcast reaches the room.
 	cfg.Manager.SpawnGuideFor(ctx, a)
 
+	// onboarding-guide.md: a returning runner whose commlink is already restored
+	// gets the one-time first-entry commlink call here. A fresh character's
+	// commlink is granted later (in the character.created pass), so that path
+	// delivers too — the shown-once record keeps it to a single call.
+	cfg.Manager.DeliverCommlinkCallFor(ctx, a.PlayerID())
+
 	// M12.2: publish character.created AFTER commit + placement (§6.4
 	// step 6) so the class-path processor's level-1 grant runs only for a
 	// character that actually committed, and so the actor is already in

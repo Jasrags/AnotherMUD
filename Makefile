@@ -71,7 +71,7 @@ run-wot: run
 .PHONY: run-shadowrun
 run-shadowrun: WORLD_PACKS := shadowrun
 run-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
-run-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
+run-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide ANOTHERMUD_COMMLINK_FIXER=shadowrun:fixer-mentor
 run-shadowrun: run
 
 # open-web: best-effort open the browser client. Runs as the FIRST prerequisite
@@ -112,7 +112,7 @@ watch-wot: watch
 .PHONY: watch-shadowrun
 watch-shadowrun: WORLD_PACKS := shadowrun
 watch-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
-watch-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
+watch-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide ANOTHERMUD_COMMLINK_FIXER=shadowrun:fixer-mentor
 watch-shadowrun: watch
 
 ## watch-web: live-reload + the web client (WebSocket on :4001), opens the client
@@ -131,7 +131,7 @@ watch-web-wot: open-web watch
 .PHONY: watch-web-shadowrun
 watch-web-shadowrun: WORLD_PACKS := shadowrun
 watch-web-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
-watch-web-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
+watch-web-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide ANOTHERMUD_COMMLINK_FIXER=shadowrun:fixer-mentor
 watch-web-shadowrun: WS_ADDR := :4001
 watch-web-shadowrun: open-web watch
 

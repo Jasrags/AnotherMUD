@@ -25,6 +25,18 @@ stats:
 # onboarding-guide — that upgrades this mentor in place. Topic keys advertised in
 # the description above so a player knows the exact words to ask.
 properties:
+  # onboarding-guide.md: the first-entry commlink call. The engine pings this to a
+  # new runner the moment they're in-world with a commlink in hand (device-gated,
+  # shown once), framed as an incoming transmission. Rook's opening: welcome +
+  # the immediate call-to-action (gear up east, then the stairs down to Westlake).
+  commlink_welcome: |
+    Text from {G}Rook{x}: You made it to the flop in one piece — good. This is my
+    private line; keep it close. First job's simple: gear up. My dealer's holding
+    a table through the east door — `list` her stock and `buy` what keeps you
+    breathing. Once you're carrying iron, take the stairs down to Westlake Plaza
+    and start making your name. `ask rook about` getting started if you want the
+    full rundown. Welcome to the shadows, chummer — don't die on me. You're bad
+    for business dead.
   dialogue:
     started: "First run? Rule one: you're a professional, not a hero. `look` around, `map` the block, and don't die. Ask me about gear, chrome, the streets, nuyen, or combat when you're ready."
     getting: "First run? Rule one: you're a professional, not a hero. `look` around, `map` the block, and don't die. Ask me about gear, chrome, the streets, nuyen, or combat."

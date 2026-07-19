@@ -108,6 +108,11 @@ type Manager struct {
 	guideTemplate string
 	guideLevelCap int
 
+	// commlink supplies the pack-authored first-entry onboarding call (a fixer
+	// pinging the runner's commlink). nil disables the feature. Set once via
+	// SetCommlink. See commlink.go / onboarding-guide.md.
+	commlink CommlinkOnboarding
+
 	// Char.Commands catalog (ui-rendering-help §10.4): the categorized command
 	// list pushed once per session for menu-capable clients. Static per role, so
 	// the two role tiers are pre-marshalled once at boot via SetCommandCatalog —
