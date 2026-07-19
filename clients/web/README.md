@@ -86,6 +86,18 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
     proceeds are waiting — a **Collect** banner (`collect`). A "showing N of M"
     note points to `browse` for the full, filterable list. A rich superset of the
     `browse`/`collect` verbs; a baseline client ignores it.
+  - **Chat** — a tabbed channel pane driven by the `Comm.Channel.Text` package
+    (the server parallel-emits one frame per channel line it also writes to the
+    main window). The panel is revealed on connect; an **All** tab plus one tab
+    per channel used/seen this session, each with its own scrollback and an
+    **unread badge** on channels you're not viewing. On a specific channel's tab
+    a reply box sends `<channel> <text>` — the same command a player would type
+    (the authority invariant; no new server verb) — while the main window still
+    carries the line too. Your **own** channel lines never come back as a frame
+    (the server excludes the sender), so they're echoed into the pane from the
+    server's `You <channel>: <msg>` confirmation, cross-checked against what you
+    just sent — which also means sending `ooc hi` from the main line opens the
+    ooc tab (no channel-list query needed). A baseline client ignores the frames.
   - **Effects** — active effects from `Char.Effects`.
   - **Progression** — per-track level/XP bars from `Char.Experience`.
   - **Identity** — name/account/race/class from `Char.Login` + `Char.Status`.
@@ -173,15 +185,16 @@ in through the normal prompts (create an account / character just like telnet).
 
 - **`ws://` is unencrypted.** For anything past localhost use `wss://` behind a
   TLS terminator; see the WebSocket TLS/rate-limit deferral (`m16-5`).
-- **Enriched packages, so far.** Seven rich additive packages are surfaced beyond
-  the baseline: `Room.Map` (the neighbourhood map, P2), `Char.Inventory` (the
+- **Enriched packages, so far.** Eight additive packages are surfaced beyond the
+  baseline: `Room.Map` (the neighbourhood map, P2), `Char.Inventory` (the
   structured inventory panel, P3 Slice A), `Char.Recipes` (the craft form, P3
   Slice B), `Char.Shop` (the shop form, P3 Slice B+), `Char.Quests` (the
-  journal, P3 Slice C), `Char.Trade` (the direct-trade form, P3 Slice B++), and
-  `Char.Auction` (the auction-house form, P3 Slice B++). Still on the wire but
-  not yet surfaced: `Char.Items.List` (superseded by `Char.Inventory` for the
-  panel), `Char.StatusVars`, `Comm.Channel.Text`, and `Char.Wizard` — dispatched
-  to a no-op, so they never error. Direct-trade + auction **forms** follow the
+  journal, P3 Slice C), `Char.Trade` (the direct-trade form, P3 Slice B++),
+  `Char.Auction` (the auction-house form, P3 Slice B++), and `Comm.Channel.Text`
+  (the tabbed chat pane). Still on the wire but not yet surfaced:
+  `Char.Items.List` (superseded by `Char.Inventory` for the panel),
+  `Char.StatusVars`, and `Char.Wizard` — dispatched to a no-op, so they never
+  error. Direct-trade + auction **forms** follow the
   same concrete-package + plain-command-submit shape — see the plan doc.
 - **Password masking is a heuristic** (the prompt text mentions "password").
   It's a local convenience, not a security boundary.

@@ -85,6 +85,28 @@
             <div id="combat-body"></div>
           </section>
 
+          <!-- Chat (Comm.Channel.Text) -->
+          <section class="panel panel-chat" id="p-chat" hidden>
+            <h2 class="panel-title">
+              <span>Chat</span>
+              <span class="chat-unread" id="chat-unread"></span>
+            </h2>
+            <div class="chat-tabs" id="chat-tabs" role="tablist" aria-label="Chat channels"></div>
+            <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+            <form class="chat-input" id="chat-form" autocomplete="off" hidden>
+              <span class="chat-verb" id="chat-verb" aria-hidden="true"></span>
+              <input
+                id="chat-say"
+                class="chat-say"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="Message…"
+                aria-label="Send on the selected channel"
+              />
+            </form>
+          </section>
+
           <!-- Room -->
           <section class="panel" id="p-room" hidden>
             <h2 class="panel-title">Location</h2>

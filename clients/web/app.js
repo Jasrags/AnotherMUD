@@ -63,7 +63,16 @@ const el = {
   auctionCollect: $("auction-collect"),
   auctionList: $("auction-list"),
   auctionMore: $("auction-more"),
+  chat: $("p-chat"),
+  chatUnread: $("chat-unread"),
+  chatTabs: $("chat-tabs"),
+  chatLog: $("chat-log"),
+  chatForm: $("chat-form"),
+  chatVerb: $("chat-verb"),
+  chatSay: $("chat-say"),
 };
+
+const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
 
 const escapeHtml = (s) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -191,6 +200,7 @@ function writeServer(text) {
   trimScrollback();
   if (stick) scrollDown();
   maybeMaskPassword(text);
+  maybeChannelSelfEcho(text);
 }
 function writeLocalEcho(cmd) {
   const stick = atBottom();
@@ -221,6 +231,210 @@ function maybeMaskPassword(text) {
   }
 }
 
+/* ── Chat pane (Comm.Channel.Text) ───────────────────────────────
+ * The server parallel-emits a Comm.Channel.Text GMCP frame for every channel
+ * line it also writes to the main window (internal/session/notifications.go),
+ * for OTHER speakers. We route those into a tabbed pane so channel chatter stays
+ * legible apart from the game stream — the main window still shows them too (the
+ * two frames are independent).
+ *
+ * Your OWN channel lines never come back as a frame (doChannelPublish excludes
+ * the sender), so we synthesize them from the server's `You <verb>: <msg>`
+ * confirmation line — cross-checked against what you just sent (recentSends), so
+ * it can't false-positive on unrelated output and needs no channel list. This
+ * doubles as channel discovery: sending `ooc hi` from the main line creates the
+ * ooc tab, after which the tab's reply box is usable.
+ *
+ * Tabs are keyed by the channel VERB (the `[ooc]` display name), which is unique
+ * among active channels (it's the command verb) and unifies received frames with
+ * self-echo. Replying reduces to the plain `<verb> <text>` command a player would
+ * type, so the engine stays the sole authority (no new verb). */
+const CHAT_MAX = 300; // cap the merged scrollback so a long session stays bounded
+const SELF_ECHO_MS = 5000; // recentSends older than this can't confirm an echo
+const chat = {
+  all: [], // {chan, text} in arrival order — the single source for every tab
+  chans: new Map(), // verb -> {verb, unread}
+  order: [], // verbs, first-seen order (tab order)
+  active: "all", // "all" or a channel verb
+};
+// Recent main-line/reply-box sends, used to confirm a `You <verb>: <msg>`
+// server line really is the echo of a channel message we just sent.
+const recentSends = [];
+
+const normSpace = (s) => s.trim().replace(/\s+/g, " ");
+
+// Derive a channel's verb: the `[verb]` prefix the server renders into `text`
+// (authoritative — it's the player-typed verb), falling back to the id's local
+// part (`tapestry-core:trade` → `trade`) if the prefix is somehow absent.
+function channelVerb(id, text) {
+  const m = stripAnsi(text).match(/^\s*\[([^\]]+)\]/);
+  if (m) return m[1].trim();
+  const i = id.lastIndexOf(":");
+  return i < 0 ? id : id.slice(i + 1);
+}
+
+function resetChat() {
+  chat.all = [];
+  chat.chans.clear();
+  chat.order = [];
+  chat.active = "all";
+  recentSends.length = 0;
+  el.chat.hidden = true;
+  el.chatForm.hidden = true;
+  el.chatTabs.replaceChildren();
+  el.chatLog.replaceChildren();
+  el.chatUnread.textContent = "";
+}
+
+// Reveal the (empty) pane on connect so the feature is visible before any
+// traffic arrives; the empty state guides the first send.
+function revealChat() {
+  el.chat.hidden = false;
+  renderChatTabs();
+  renderChatLog();
+}
+
+// addChatLine is the single append path for BOTH received frames and self-echo.
+function addChatLine(verb, text) {
+  let c = chat.chans.get(verb);
+  if (!c) {
+    c = { verb, unread: 0 };
+    chat.chans.set(verb, c);
+    chat.order.push(verb);
+  }
+  chat.all.push({ chan: verb, text });
+  if (chat.all.length > CHAT_MAX) chat.all.shift();
+  // Unread accrues only for channels not currently in view (the "all" tab shows
+  // everything, so nothing is unread while it's active).
+  if (chat.active !== "all" && chat.active !== verb) c.unread++;
+
+  el.chat.hidden = false;
+  renderChatTabs();
+  renderChatLog();
+}
+
+function onCommChannel(d) {
+  if (!d || typeof d.text !== "string") return;
+  const id = typeof d.channel === "string" ? d.channel : "";
+  if (!id) return; // spec: empty channel id is not a routable chat line
+  addChatLine(channelVerb(id, d.text), d.text);
+}
+
+// Called for every server text frame: detect the `You <verb>: <msg>`
+// confirmation of a channel message we just sent and echo it into the pane.
+const SELF_ECHO_RE = /^You (\S+): (.+)$/;
+function maybeChannelSelfEcho(text) {
+  const now = Date.now();
+  // Prune stale sends first so an old command can't confirm a later line.
+  while (recentSends.length && now - recentSends[0].at > SELF_ECHO_MS) recentSends.shift();
+  if (!recentSends.length) return;
+
+  for (const raw of stripAnsi(text).split("\n")) {
+    const m = SELF_ECHO_RE.exec(raw.trim());
+    if (!m) continue;
+    const verb = m[1];
+    const msg = m[2];
+    const idx = recentSends.findIndex((s) => {
+      const sp = normSpace(s.cmd);
+      const spc = sp.indexOf(" ");
+      if (spc < 0) return false;
+      return (
+        sp.slice(0, spc).toLowerCase() === verb.toLowerCase() &&
+        normSpace(sp.slice(spc + 1)) === normSpace(msg)
+      );
+    });
+    if (idx < 0) continue; // a `You x: y` line we didn't send — not a channel echo
+    recentSends.splice(idx, 1); // consume it so a repeat can't re-echo the same send
+    addChatLine(verb, `[${verb}] You: ${msg}`);
+  }
+}
+
+function recordSend(text) {
+  recentSends.push({ cmd: text, at: Date.now() });
+  if (recentSends.length > 20) recentSends.shift();
+}
+
+function renderChatTabs() {
+  const totalUnread = chat.order.reduce((n, v) => n + chat.chans.get(v).unread, 0);
+  el.chatUnread.textContent = totalUnread ? String(totalUnread) : "";
+
+  const tabs = [{ verb: "all", label: "All", unread: 0 }].concat(
+    chat.order.map((v) => ({ verb: v, label: v, unread: chat.chans.get(v).unread })),
+  );
+  el.chatTabs.replaceChildren(
+    ...tabs.map((t) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chat-tab" + (chat.active === t.verb ? " is-active" : "");
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", String(chat.active === t.verb));
+      btn.dataset.chan = t.verb;
+      const label = document.createElement("span");
+      label.textContent = t.label;
+      btn.appendChild(label);
+      if (t.unread) {
+        const badge = document.createElement("span");
+        badge.className = "chat-tab-badge";
+        badge.textContent = t.unread > 99 ? "99+" : String(t.unread);
+        btn.appendChild(badge);
+      }
+      return btn;
+    }),
+  );
+}
+
+function renderChatLog() {
+  const t = el.chatLog;
+  const stick = t.scrollHeight - t.scrollTop - t.clientHeight < 40;
+  const msgs = chat.active === "all" ? chat.all : chat.all.filter((m) => m.chan === chat.active);
+  t.replaceChildren(
+    ...msgs.map((m) => {
+      const line = document.createElement("span");
+      line.className = "chat-line";
+      line.innerHTML = ansiToHtml(m.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
+      line.appendChild(document.createTextNode("\n"));
+      return line;
+    }),
+  );
+  if (stick) t.scrollTop = t.scrollHeight;
+
+  // The reply box targets a concrete channel; on "all" the target is ambiguous,
+  // so we hide it (the main command line still reaches every channel).
+  const active = chat.active !== "all" && chat.active;
+  el.chatForm.hidden = !active;
+  if (active) el.chatVerb.textContent = active;
+}
+
+function setChatTab(verb) {
+  chat.active = verb;
+  if (verb === "all") {
+    for (const c of chat.chans.values()) c.unread = 0;
+  } else {
+    const c = chat.chans.get(verb);
+    if (c) c.unread = 0;
+  }
+  renderChatTabs();
+  renderChatLog();
+  if (chat.active !== "all") el.chatSay.focus();
+}
+
+el.chatTabs.addEventListener("click", (e) => {
+  const btn = e.target.closest(".chat-tab");
+  if (btn) setChatTab(btn.dataset.chan);
+});
+
+el.chatForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const verb = chat.active !== "all" && chat.active;
+  const text = el.chatSay.value.trim();
+  if (!verb || !text) return;
+  // Reduces to the exact command a player would type — authority invariant.
+  // The line appears in the pane when the server's `You <verb>: <msg>`
+  // confirmation comes back (maybeChannelSelfEcho), same as a main-line send.
+  sendCommand(`${verb} ${text}`);
+  el.chatSay.value = "";
+});
+
 /* ── GMCP dispatch ───────────────────────────────────────────── */
 const gmcpHandlers = {
   "Char.Login": (d) => {
@@ -246,9 +460,10 @@ const gmcpHandlers = {
   "Char.Quests": renderQuests,
   "Char.Trade": renderTrade,
   "Char.Auction": renderAuction,
-  // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
-  // received but not yet surfaced — dispatched to a no-op so unknown packages
-  // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
+  "Comm.Channel.Text": onCommChannel,
+  // Char.Items.List / Char.StatusVars / Char.Wizard are received but not yet
+  // surfaced — dispatched to a no-op so unknown packages never throw.
+  // (Char.Inventory is the P3 richer superset of Char.Items.List.)
 };
 
 function dispatchGmcp(pkg, data) {
@@ -965,12 +1180,14 @@ function connect(url) {
     return;
   }
   conn.socket = socket;
+  resetChat();
   setStatus("connecting", "Connecting…");
   writeSys(`Connecting to ${url} …`);
 
   socket.onopen = () => {
     setStatus("online", "Online");
     setConnected(true);
+    revealChat();
     writeSys("Connected. GMCP is active (WebSocket).");
   };
   socket.onmessage = (ev) => {
@@ -1004,7 +1221,11 @@ function disconnect() {
 function sendCommand(text) {
   if (!conn.socket || conn.socket.readyState !== WebSocket.OPEN) return;
   conn.socket.send(JSON.stringify({ type: "command", data: text }));
-  writeLocalEcho(el.cmd.type === "password" ? "•".repeat(Math.min(text.length, 12)) : text);
+  const masked = el.cmd.type === "password";
+  writeLocalEcho(masked ? "•".repeat(Math.min(text.length, 12)) : text);
+  // Remember non-password sends so a channel confirmation can be echoed into the
+  // chat pane (never record a password prompt's input).
+  if (!masked) recordSend(text);
 }
 
 function sendGmcp(pkg, data) {
