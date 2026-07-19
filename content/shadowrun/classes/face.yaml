@@ -1,0 +1,76 @@
+id: face
+name: Face
+tagline: The smile that opens the door the samurai would have to kick down.
+description: |
+  The Face is the team's voice, its front, and its first line of defence — the
+  runner who talks a guard into looking the other way, reads a Johnson's tell
+  across a negotiating table, and walks out of a corp lobby with a smile and the
+  paydata. Where the samurai trusts chrome and the decker trusts code, the Face
+  trusts the oldest tools in the shadows: charm, nerve, and knowing exactly what
+  the person across from them wants. A holdout pistol rides in the jacket for the
+  conversations that go wrong — but if the Face is doing their job, it stays there.
+level_up_flavor: |
+  Another mark read, another door opened with words instead of force. You are a
+  fraction better at seeing what people want before they say it.
+
+# Bound to the shadowrun world's advancement track (character-identity world-
+# locking). SR is level-less (advancement: karma-ledger), so this track never
+# accrues — the class is a creation package; growth is bought à la carte.
+bound_track: street
+
+# The Face is the fragile frame — no chrome, no combat drills. hp_max (the
+# Physical monitor) grows slowest. Inert under karma-ledger advancement (the
+# bound_track never accrues), but authored for parity with the samurai.
+stat_growth:
+  hp_max: 1d6
+
+trains_per_level: 5
+
+# The Face's toolkit, granted at level 1 (all reused from the shadowrun ability
+# set): the social skills that ARE the archetype, plus perception (reading a
+# room is a Face's first move). Etiquette + Leadership are the rest of SR5's
+# Influence group and land when authored — con / negotiation / intimidation +
+# perception are the buildable floor today.
+path:
+  - level: 1
+    ability: negotiation
+  - level: 1
+    ability: con
+  - level: 1
+    ability: intimidation
+  - level: 1
+    ability: perception
+
+# Weapon proficiency (weapon-identity §3): simple only. A Face is no gunslinger —
+# the holdout is desperate backup, not a trade. A pistol still fires without the
+# skill (defaulting), just without a proficiency edge; that under-gunned feeling
+# is the point.
+proficiency_tiers:
+  - simple
+
+# Armour proficiency (armor-depth §5): light only — a lined coat or armoured
+# clothing under a good suit, never a visible plate carrier into a negotiation.
+armor_proficiency_tiers:
+  - light
+
+# Role "floor" kit (role×origin creation): a concealable holdout the Face always
+# carries. RESTRICTED (needs a firearms-tier license) — licensed by a corp/
+# military origin's SIN, carried hot by a SINless one. The real weapon is the
+# skill spread above.
+starting_items:
+  - streetline-special
+
+# Saving throws (saves §2): the Face's spread — strong Will (composure, reading
+# and resisting social pressure), weak Fortitude and Reflex.
+save_progressions:
+  will: strong
+  fortitude: weak
+  reflex: weak
+
+# Eligibility: any metahuman. No channeling gate (Shadowrun's default creation
+# flow, giftGated=false).
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+priority: 0

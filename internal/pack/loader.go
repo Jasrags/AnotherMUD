@@ -3034,6 +3034,15 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 			saveProg[a] = p
 		}
 	}
+	// starting_items are namespace-qualified at decode (matching decodeBackground's
+	// Items): a bare id resolves against this pack's ns, a qualified id crosses
+	// packs. The granter looks templates up by their qualified key, so storing bare
+	// ids here would never resolve at grant time (the role "floor" kit would
+	// silently never spawn). An empty entry is a load error.
+	startingItems, err := qualifyIDList(f.StartingItems, ns, path, "starting_items")
+	if err != nil {
+		return nil, err
+	}
 	return &progression.Class{
 		ID:                    f.ID,
 		DisplayName:           strings.TrimSpace(f.Name),
@@ -3052,6 +3061,7 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 		ProficiencyTiers:      append([]string(nil), f.ProficiencyTiers...),
 		ProficiencyCategories: append([]string(nil), f.ProficiencyCategories...),
 		ArmorProficiencyTiers: append([]string(nil), f.ArmorProficiencyTiers...),
+		StartingItems:         startingItems,
 		SaveProgressions:      saveProg,
 		StartingAlignment:     f.StartingAlignment,
 		Pack:                  ns,

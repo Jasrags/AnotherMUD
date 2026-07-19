@@ -104,6 +104,25 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 		t.Errorf("human StatCaps = %v, want an 'agility' cap (the SR override should win over core human)", human.StatCaps)
 	}
 
+	// Role×origin creation: a class's role "floor" kit (starting_items) is
+	// namespace-qualified at decode (like a background's Items). A bare id would
+	// silently never resolve at grant time, shipping the floor inert — so pin the
+	// qualified shape here, at the real load path.
+	sam, ok := regs.Classes.Get("street-samurai")
+	if !ok {
+		t.Fatal("street-samurai class not loaded")
+	}
+	if got := sam.StartingItems; len(got) != 1 || got[0] != "shadowrun:stun-baton" {
+		t.Errorf("street-samurai StartingItems = %v, want [shadowrun:stun-baton] (namespace-qualified)", got)
+	}
+	face, ok := regs.Classes.Get("face")
+	if !ok {
+		t.Fatal("face class not loaded")
+	}
+	if got := face.StartingItems; len(got) != 1 || got[0] != "shadowrun:streetline-special" {
+		t.Errorf("face StartingItems = %v, want [shadowrun:streetline-special] (namespace-qualified)", got)
+	}
+
 	// The world selects the Shadowrun attribute set (manifest attribute_set:).
 	if got := regs.WorldAttributeSets["shadowrun"]; got != "shadowrun-primaries" {
 		t.Errorf("WorldAttributeSets[shadowrun] = %q, want shadowrun-primaries", got)

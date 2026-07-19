@@ -84,6 +84,14 @@ armor_proficiency_tiers:
   - light
   - medium
 
+# Role "floor" kit (role×origin creation): the weapon a samurai is guaranteed
+# regardless of how broke their origin is. A stun baton is non-lethal but
+# RESTRICTED (needs a firearms-tier license) — a SINless samurai carries it hot,
+# which is the intended risk. Lethal firearms come from the origin package
+# (licensed) or are acquired in-world. Clubs skill (granted above) drives it.
+starting_items:
+  - stun-baton
+
 # Saving throws (saves §2): the soldier's spread — strong Fortitude (wired
 # reflexes, augmented resilience), weak Reflex and Will.
 save_progressions:

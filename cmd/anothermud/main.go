@@ -1400,6 +1400,12 @@ func run() error {
 			// never re-fires on relogin, where RestoreBase carries the value.
 			if cls, ok := registries.Classes.Get(classID); ok {
 				actor.ApplyStartingStats(cls.StartingStats)
+				// Role "floor" kit (role×origin creation): the class's guaranteed
+				// starting gear — a samurai's stun baton, a Face's holdout — spawned
+				// into inventory once at creation, so a role is playable regardless
+				// of the origin's wealth. The background package (below) layers
+				// money + upgrades on top. Fires once; never re-granted on login.
+				backgroundGranter.GrantStartingItems(e.EntityID, cls.StartingItems)
 			}
 		}
 		// A freshly created character starts with full resource pools: the

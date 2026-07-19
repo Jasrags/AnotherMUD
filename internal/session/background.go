@@ -103,6 +103,22 @@ func (g *BackgroundGranter) Grant(ctx context.Context, playerID string, bg *prog
 	}
 }
 
+// GrantStartingItems spawns item template ids into the online character's
+// inventory — the shared item-grant path, reused for a class's role-"floor" kit
+// (progression.Class.StartingItems) applied at character.created alongside the
+// background package. An offline recipient or an empty list is a no-op; a
+// missing template is skipped fail-soft, exactly like the background grant.
+func (g *BackgroundGranter) GrantStartingItems(playerID string, ids []string) {
+	if g == nil || len(ids) == 0 {
+		return
+	}
+	a, ok := g.mgr.GetByPlayerID(playerID)
+	if !ok {
+		return
+	}
+	g.grantItems(a, ids)
+}
+
 // grantItems spawns each item template into the actor's inventory, skipping a
 // missing template fail-soft (shared by the always-grant and the chosen
 // equipment package).

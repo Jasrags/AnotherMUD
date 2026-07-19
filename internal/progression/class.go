@@ -68,6 +68,16 @@ type Class struct {
 	// the base snapshot, so it survives relogin without re-applying.
 	StartingStats map[StatType]int
 
+	// StartingItems are item template ids placed in the new character's
+	// inventory once at character creation — the class's role "floor" kit (a
+	// Street Samurai's stun baton, a Face's holdout pistol). This guarantees a
+	// role is playable regardless of how poor the chosen origin/background is:
+	// the origin/background layers money + upgrades on top (role×origin creation).
+	// Applied by the character.created subscriber alongside the background
+	// package; never re-granted on login. Bare template ids (the item registry
+	// is global); a missing template is skipped fail-soft at grant time.
+	StartingItems []string
+
 	// Path is the (level, abilityId, unlockedVia) list (§4.1). Path
 	// entries with non-empty UnlockedVia are skipped by the
 	// processor; the field exists so content can declare which
@@ -200,6 +210,13 @@ func (cr *ClassRegistry) Register(c *Class) error {
 		p := make([]ClassPathEntry, len(c.Path))
 		copy(p, c.Path)
 		clone.Path = p
+	}
+	if len(c.StartingItems) > 0 {
+		items := make([]string, len(c.StartingItems))
+		for i, v := range c.StartingItems {
+			items[i] = strings.TrimSpace(v)
+		}
+		clone.StartingItems = items
 	}
 	if len(c.AllowedCategories) > 0 {
 		cats := make([]string, len(c.AllowedCategories))

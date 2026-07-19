@@ -49,6 +49,39 @@ func TestBackgroundGranter_GrantsSkillsAndItems(t *testing.T) {
 	}
 }
 
+// GrantStartingItems is the class role-"floor" grant path (role×origin creation):
+// it spawns the given templates into the online character's inventory, no-ops on
+// an empty list or an offline recipient, and skips a missing template fail-soft.
+func TestBackgroundGranter_GrantStartingItems(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	mgr.Add(a)
+
+	store := entities.NewStore()
+	tpls := item.NewTemplates()
+	tpls.Add(&item.Template{ID: "shadowrun:stun-baton", Name: "stun baton", Type: "item"})
+
+	g := NewBackgroundGranter(mgr, nil, tpls, store, nil)
+
+	// Empty list: no-op.
+	g.GrantStartingItems("p1", nil)
+	if len(a.Inventory()) != 0 {
+		t.Fatalf("empty list granted %d items, want 0", len(a.Inventory()))
+	}
+	// Offline recipient: silent no-op, no panic.
+	g.GrantStartingItems("ghost", []string{"shadowrun:stun-baton"})
+
+	// The floor weapon spawns; a missing template in the same call is skipped.
+	g.GrantStartingItems("p1", []string{"shadowrun:stun-baton", "shadowrun:nope"})
+	inv := a.Inventory()
+	if len(inv) != 1 {
+		t.Fatalf("inventory = %d items, want 1 (floor weapon; missing template skipped)", len(inv))
+	}
+	if ent, ok := store.GetByID(inv[0]); !ok || string(ent.(*entities.ItemInstance).TemplateID()) != "shadowrun:stun-baton" {
+		t.Errorf("granted item = %v, want shadowrun:stun-baton", ent)
+	}
+}
+
 func TestBackgroundGranter_DefaultsProficiencyAndSkipsMissing(t *testing.T) {
 	mgr := NewManager()
 	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})

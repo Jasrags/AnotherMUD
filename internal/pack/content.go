@@ -627,6 +627,9 @@ type ClassFile struct {
 	ProficiencyTiers      []string             `yaml:"proficiency_tiers,omitempty"`
 	ProficiencyCategories []string             `yaml:"proficiency_categories,omitempty"`
 	ArmorProficiencyTiers []string             `yaml:"armor_proficiency_tiers,omitempty"`
+	// StartingItems are item template ids granted into inventory once at
+	// creation — the role's "floor" kit (progression.Class.StartingItems).
+	StartingItems []string `yaml:"starting_items,omitempty"`
 	// SaveProgressions maps a save axis (fortitude/reflex/will) to a
 	// strong or weak base-save curve (saves §2). An omitted axis defaults
 	// to weak. Validated at load: unknown axis or progression names are an
