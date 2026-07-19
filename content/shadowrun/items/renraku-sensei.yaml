@@ -1,0 +1,17 @@
+id: renraku-sensei
+name: a Renraku Sensei commlink
+type: item
+description: |
+  Renraku's mid-market workhorse — the commlink you actually see on the street,
+  reliable enough that a discharged soldier or a working shadowrunner trusts it
+  with their real traffic. A clean matte shell, a decent firewall, and just
+  enough processing to run a couple of programs without choking.
+tags: [commlink, electronics, tradegood]
+keywords: [commlink, comm, link, sensei, renraku sensei, renraku-sensei]
+properties:
+  weight: 0.1
+  value: 1000
+  # device_rating — Matrix defence + the tier a scanner reads off you (SR5 core
+  # gear, p.438). Authored-ahead like a fake SIN's credential_rating; INERT
+  # until the comms / Matrix arc consumes it.
+  device_rating: 3

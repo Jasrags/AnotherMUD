@@ -1,0 +1,19 @@
+id: meta-link
+name: a Meta Link commlink
+type: item
+description: |
+  The cheapest commlink that still earns the name — a MetaMechanics budget slab
+  of grey plastic that runs your AR, your credstick, and your calls without
+  complaint and without style. Every wageslave kid and barrens runner starts
+  with one; nobody mourns it when it gets slotted or tossed in a gutter. It will
+  not survive a decker who takes an interest.
+tags: [commlink, electronics, tradegood]
+keywords: [commlink, comm, link, meta link, metalink, meta-link]
+properties:
+  weight: 0.1
+  value: 100
+  # device_rating is the commlink's Matrix defence and the tier a scanner reads
+  # off you (SR5 core gear, p.438). Authored-ahead exactly like a fake SIN's
+  # credential_rating — INERT until the comms / Matrix arc consumes it; nothing
+  # reads it yet.
+  device_rating: 1

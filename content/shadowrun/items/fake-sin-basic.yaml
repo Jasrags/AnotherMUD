@@ -14,8 +14,9 @@ properties:
   value: 5000
   # sin-and-legality.md §3: a carried credential. `permits` clears restricted
   # goods whose `permit` matches; here a firearms license. `credential_rating`
-  # is authored for the deferred Slice 2 verification/burn check — INERT in
-  # Slice 1 (the market gate never reads it). SR pricing: a fake SIN ≈ rating
-  # × 2,500¥.
+  # is the §7 scan bonus (d20 + rating vs scanner_rating) — this low r2 fake
+  # burns under real scrutiny. Every permit rides this single SIN rating
+  # (Option A; per-license ratings are a deferred future option — see
+  # [[sin-legality-build-log]]). SR pricing: a fake SIN ≈ rating × 2,500¥.
   permits: [firearms]
   credential_rating: 2

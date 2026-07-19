@@ -1,0 +1,17 @@
+id: hermes-ikon
+name: a Hermes Ikon commlink
+type: item
+description: |
+  Horizon's Hermes Ikon — sleek, social, and expensive, the commlink a corporate
+  exec (or an ex-corporate who kept their taste) clips on without thinking. A
+  strong firewall, generous data processing, and an AR presence engineered to
+  make you look good across a negotiating table. Status you can hold in one hand.
+tags: [commlink, electronics, tradegood]
+keywords: [commlink, comm, link, ikon, hermes ikon, hermes-ikon]
+properties:
+  weight: 0.1
+  value: 3000
+  # device_rating — Matrix defence + the tier a scanner reads off you (SR5 core
+  # gear, p.438). Authored-ahead like a fake SIN's credential_rating; INERT
+  # until the comms / Matrix arc consumes it.
+  device_rating: 5
