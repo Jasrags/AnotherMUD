@@ -1,0 +1,36 @@
+id: ex-security
+name: Ex-Security
+tagline: Corp sec, army, or a Lone Star badge — the uniform came off, the training didn't.
+description: |
+  You wore somebody's colors once — a corp security detail, a UCAS infantry
+  hitch, a Knight Errant contract. You learned to carry a weapon legally, patch a
+  wound in the field, and live rough when the supply line failed. Then the
+  contract ended, honorably or otherwise, and the shadows were the only outfit
+  still hiring. Your service SIN and its firearms license are real and still
+  good — which means every scanner that clears you also files exactly where
+  you've been.
+# Life skills (backgrounds §2), granted at novice: the field curriculum —
+# staying alive outdoors and keeping a teammate breathing.
+skills:
+  - ability: survival
+    proficiency: 10
+  - ability: first-aid
+    proficiency: 10
+# Pick-one background feat (the chooser): the veteran's conditioned durability
+# (Toughness) or the drilled resilience that shrugs off a hit (Great Fortitude).
+# Both are core feats.
+feat_options:
+  - toughness
+  - great-fortitude
+# Always-granted starting kit (role×origin): a REAL national/service SIN with a
+# firearms license, a reliable mid-tier commlink, milsurp armour, and a licensed
+# heavy sidearm with a magazine of caseless. Papered and armed, but modest money.
+items:
+  - national-sin
+  - renraku-sensei
+  - armored-jacket
+  - ares-predator-v
+  - caseless-round
+gold: 1000
+allowed_categories:
+  - humanoid

@@ -1,0 +1,23 @@
+id: corporate-sin
+name: a corporate SIN
+type: item
+description: |
+  A genuine corporate System Identification Number — the citizen identity a
+  wageslave is issued on hire, backed by real payroll records, real tax filings,
+  and a real face in a real database. This one belongs to a dropout who walked
+  with their credentials still valid: it opens corporate doors and clears a
+  licensed sidearm without a second glance. It is also, unlike a fake, truly
+  you — which is exactly the problem when someone comes looking.
+tags: [credential, tradegood]
+keywords: [sin, corporate sin, corp sin, credstick, papers, id]
+properties:
+  weight: 0
+  value: 25000
+  # A real SIN, modeled today as a HIGH-RATING credential: rating 5 passes most
+  # scanners (sin-and-legality.md §7); its permits clear firearms + the corporate
+  # checkpoint. NOTE: the true real-vs-fake mechanic (a real SIN should be
+  # non-burnable + traceable, feeding security heat rather than burning) is a
+  # deferred refinement — today it can still burn like a fake, and rating is the
+  # only real/fake axis. See the sin-legality deferred-fix index.
+  permits: [firearms, corporate]
+  credential_rating: 5

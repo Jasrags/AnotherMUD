@@ -123,6 +123,31 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 		t.Errorf("face StartingItems = %v, want [shadowrun:streetline-special] (namespace-qualified)", got)
 	}
 
+	// Role×origin creation origins: the three backgrounds load, each granting the
+	// universal commlink among its always-granted items, and the two papered
+	// origins carry a real SIN. Ids namespace-qualify at decode — a typo would
+	// fail-soft to nothing at grant time, so pin a signature item per origin.
+	for _, tc := range []struct{ id, wantItem string }{
+		{"street-kid", "shadowrun:meta-link"},
+		{"corporate-dropout", "shadowrun:corporate-sin"},
+		{"ex-security", "shadowrun:national-sin"},
+	} {
+		bg, ok := regs.Backgrounds.Get(tc.id)
+		if !ok {
+			t.Fatalf("%s background not loaded", tc.id)
+		}
+		found := false
+		for _, it := range bg.Items {
+			if it == tc.wantItem {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("%s Items = %v, want to contain %s", tc.id, bg.Items, tc.wantItem)
+		}
+	}
+
 	// The world selects the Shadowrun attribute set (manifest attribute_set:).
 	if got := regs.WorldAttributeSets["shadowrun"]; got != "shadowrun-primaries" {
 		t.Errorf("WorldAttributeSets[shadowrun] = %q, want shadowrun-primaries", got)

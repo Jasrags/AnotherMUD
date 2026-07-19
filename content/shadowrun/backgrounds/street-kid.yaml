@@ -23,6 +23,12 @@ skills:
 feat_options:
   - alertness
   - stealthy
+# Always-granted (role×origin): every runner carries a commlink — the street kid
+# starts with the cheapest throwaway Meta Link. No SIN: the street kid is SINless
+# (the defining edge AND liability), so any restricted gear they carry — including
+# the role's stun-baton floor — is HOT at a checkpoint or a licensed shop.
+items:
+  - meta-link
 # Pick-one starting kit (backgrounds §2). Three loadouts a fresh runner might
 # have scraped together — the gunslinger, the blade, or the non-lethal
 # specialist. All items are shadowrun-pack gear (SR-M3c-2).

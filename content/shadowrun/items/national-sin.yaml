@@ -1,0 +1,20 @@
+id: national-sin
+name: a national SIN
+type: item
+description: |
+  A real national System Identification Number — the ordinary citizen ID of a
+  UCAS national, complete with a service record for anyone who bothers to pull
+  it. This one belonged to a soldier before the discharge, and the firearms
+  license attached to it never lapsed. Solid papers that hold up to a street
+  scan — and a paper trail that leads straight back to a name and a face.
+tags: [credential, tradegood]
+keywords: [sin, national sin, service sin, credstick, papers, id]
+properties:
+  weight: 0
+  value: 12000
+  # A real SIN as a high-rating credential (rating 4): clears firearms at a
+  # street scan (sin-and-legality.md §7). The real-vs-fake mechanic (non-burnable
+  # + traceable heat) is deferred — see the sin-legality deferred-fix index;
+  # today rating is the only real/fake axis and it can still burn.
+  permits: [firearms]
+  credential_rating: 4

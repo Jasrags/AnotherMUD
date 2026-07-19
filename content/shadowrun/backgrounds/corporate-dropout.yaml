@@ -1,0 +1,39 @@
+id: corporate-dropout
+name: Corporate Dropout
+tagline: You had a badge, a desk, and a future. You kept the badge.
+description: |
+  You came up inside the arcology — corp creche, corp schooling, a cubicle with
+  your name on it and a pension you'd never live to collect. Then something broke
+  the spell: a superior's dirty order, a downsizing list with your name on it, a
+  line you finally wouldn't cross. You walked, and you walked with your papers
+  still valid. That real SIN opens doors a runner should never be able to open —
+  right up until the corp decides to close them, with you on the wrong side.
+# Life skills (backgrounds §2), granted at novice: the arcology curriculum —
+# reading a room and talking a deal. Broadly useful; a Face origin'd here starts
+# doubly smooth, a samurai gains a corporate polish.
+skills:
+  - ability: negotiation
+    proficiency: 10
+  - ability: perception
+    proficiency: 10
+# Pick-one background feat (the chooser): the analyst's eye for detail
+# (Alertness) or the executive's trained composure (Iron Will). Both are core
+# feats.
+feat_options:
+  - alertness
+  - iron-will
+# Always-granted starting kit (role×origin): a REAL corporate SIN carrying a
+# firearms + corporate-zone license, a good mid-tier commlink, a sharp suit +
+# concealable vest, and a licensed light pistol. The affluent, papered start —
+# the role's floor weapon rides on top of this. Item ids namespace-qualify at
+# decode (backgrounds §4).
+items:
+  - corporate-sin
+  - hermes-ikon
+  - actioneer-business-clothes
+  - armor-vest
+  - ares-light-fire-70
+# Severance money — the fattest starting pouch of the three origins.
+gold: 2500
+allowed_categories:
+  - humanoid
