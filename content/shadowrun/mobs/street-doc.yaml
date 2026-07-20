@@ -26,7 +26,11 @@ properties:
     # category to sell-backs.
     buys: [cyberware, armor]
     sells:
+      # The full range of kits + refill supplies — a street doc's bread and butter.
+      - shadowrun:pocket-medkit
       - shadowrun:medkit
+      - shadowrun:trauma-kit
+      - shadowrun:medkit-supplies
       - shadowrun:stimpatch
       - shadowrun:armored-jacket
       - shadowrun:armor-vest

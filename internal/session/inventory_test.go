@@ -31,6 +31,72 @@ func swordTpl() *item.Template {
 	}
 }
 
+// medkitTplPersist is a charged item (a medkit) for the charge-persistence
+// round-trip.
+func medkitTplPersist() *item.Template {
+	return &item.Template{
+		ID: "tapestry-core:field-medkit", Name: "a medkit", Type: "item",
+		Keywords: []string{"medkit"},
+		Properties: map[string]any{
+			"first_aid_kit": true,
+			"charges":       10,
+			"max_charges":   10,
+		},
+	}
+}
+
+// A spent medkit keeps its remaining charges across a save → respawn cycle
+// (InventoryEntry.Charges), rather than resetting to the template's 10 —
+// the persistence that makes "refillable kit" mean anything across relog.
+func TestRespawnInventory_PersistsMedkitCharges(t *testing.T) {
+	store := entities.NewStore()
+	tpls := item.NewTemplates()
+	tpls.Add(medkitTplPersist())
+
+	// Spawn the kit into inventory, then spend it down to 3 uses.
+	a := newInvActor(t, store)
+	respawnInventory(context.Background(), a, store, nil, tpls,
+		[]player.InventoryEntry{{Template: "tapestry-core:field-medkit"}})
+	id := a.Inventory()[0]
+	inst := mustItem(t, store, id)
+	inst.SetProperty("charges", 3)
+
+	// Sync to the save tree: the spent count is captured (not nil, not 10).
+	a.mu.Lock()
+	a.syncInventoryToSaveLocked()
+	a.mu.Unlock()
+	out := a.save.Inventory
+	if len(out) != 1 || out[0].Charges == nil {
+		t.Fatalf("save Charges = nil, want *3 (spent count not captured)")
+	}
+	if *out[0].Charges != 3 {
+		t.Fatalf("save Charges = %d, want 3", *out[0].Charges)
+	}
+
+	// Respawn from the saved entry into a fresh store: the kit keeps 3, not
+	// the template's 10.
+	store2 := entities.NewStore()
+	a2 := newInvActor(t, store2)
+	respawnInventory(context.Background(), a2, store2, nil, tpls, out)
+	inst2 := mustItem(t, store2, a2.Inventory()[0])
+	if got, _ := inst2.Property("charges"); got != 3 {
+		t.Errorf("respawned charges = %v, want 3 (persisted, not template 10)", got)
+	}
+}
+
+func mustItem(t *testing.T, store *entities.Store, id entities.EntityID) *entities.ItemInstance {
+	t.Helper()
+	e, ok := store.GetByID(id)
+	if !ok {
+		t.Fatalf("item %s not in store", id)
+	}
+	it, ok := e.(*entities.ItemInstance)
+	if !ok {
+		t.Fatalf("entity %s is not an item", id)
+	}
+	return it
+}
+
 func TestActor_AddInventory_SyncsSaveTemplateIDs(t *testing.T) {
 	store := entities.NewStore()
 	a := newInvActor(t, store)

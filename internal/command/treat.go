@@ -28,6 +28,9 @@ const (
 	// propFirstAidKit flags an item as a medkit — the required tool the
 	// treat action consumes a charge from. Freeform item property.
 	propFirstAidKit = "first_aid_kit"
+	// propMedkitRating is the medkit's SR5 Rating (1-6): it aids the First
+	// Aid check and lifts the heal cap. Absent/low ⇒ a minimal rating-1 kit.
+	propMedkitRating = "rating"
 	// treatDC is the base First Aid threshold the d20 check is rolled
 	// against (skills §3). Modest — a wounded runner should usually stabilize.
 	treatDC = 10
@@ -104,8 +107,13 @@ func TreatHandler(ctx context.Context, c *Context) error {
 	if sv != nil {
 		statScore = sv.StatValue(gov)
 	}
+	// The medkit's rating (SR5 Rating 1-6) aids the check like a dice-pool
+	// bonus — a better kit both raises the success odds and, via a bigger
+	// margin + a lifted cap below, heals more. It also lets an untrained
+	// runner get real value from good gear (SR: use the device rating).
+	rating := medkitRating(kit)
 	cfg := progression.DefaultSkillConfig()
-	bonus := progression.SkillBonus(prof, statScore, cfg) - defaultPenalty
+	bonus := progression.SkillBonus(prof, statScore, cfg) - defaultPenalty + rating
 	outcome := progression.ResolveSkillCheck(c.SkillRoller, bonus, treatDC)
 
 	// The skill improves on every attempt (reduced on a miss), and a charge
@@ -127,7 +135,7 @@ func TreatHandler(ctx context.Context, c *Context) error {
 	// defaulter barely helps, a trained medic closes real damage. Vitals.Heal
 	// clamps to the target's missing HP.
 	margin := max(outcome.Total-treatDC, 0)
-	healCap := treatBaseHeal + progression.ProficiencyBonus(prof, cfg)
+	healCap := treatBaseHeal + progression.ProficiencyBonus(prof, cfg) + rating
 	amount := min(treatBaseHeal+margin, healCap)
 	// HealAmount returns the HP ACTUALLY restored (not the new current) with
 	// the post-heal snapshot, atomically — so the "+N HP" line and the
@@ -186,4 +194,14 @@ func isFirstAidKit(it *entities.ItemInstance) bool {
 	}
 	b, _ := v.(bool)
 	return b
+}
+
+// medkitRating reads the kit's SR5 Rating, flooring at 1 so any medkit — even
+// one authored without a rating — is a usable rating-1 kit rather than a
+// bonus-less tool.
+func medkitRating(it *entities.ItemInstance) int {
+	if r := intProp(it, propMedkitRating); r > 1 {
+		return r
+	}
+	return 1
 }

@@ -31,24 +31,33 @@ func kitCharges(t *testing.T, kit *entities.ItemInstance) int {
 	}
 }
 
-// medkitTpl is a functional First Aid kit: the first_aid_kit flag + a
-// starting supply of charges the treat verb spends.
-func medkitTpl(charges int) *item.Template {
+// medkitTpl is a functional First Aid kit: the first_aid_kit flag, a rating
+// (SR5 1-6), and a starting supply of charges the treat verb spends.
+func medkitTpl(charges, rating int) *item.Template {
 	return &item.Template{
 		ID: "shadowrun:medkit", Name: "a medkit", Type: "item",
 		Keywords: []string{"medkit", "kit"},
 		Properties: map[string]any{
-			"first_aid_kit":     true,
-			economy.PropCharges: charges,
+			"first_aid_kit":        true,
+			"rating":               rating,
+			economy.PropCharges:    charges,
+			economy.PropMaxCharges: 10,
 		},
 	}
 }
 
-// giveMedkit spawns a medkit with the given charges into the actor's
+// giveMedkit spawns a rating-1 medkit with the given charges into the actor's
 // inventory and returns the live instance (so a test can read its charges).
 func giveMedkit(t *testing.T, f *considerFixture, a *combatActor, charges int) *entities.ItemInstance {
 	t.Helper()
-	inst, err := f.store.Spawn(medkitTpl(charges))
+	return giveMedkitRated(t, f, a, charges, 1)
+}
+
+// giveMedkitRated is giveMedkit with an explicit rating, for the rating-scaling
+// test.
+func giveMedkitRated(t *testing.T, f *considerFixture, a *combatActor, charges, rating int) *entities.ItemInstance {
+	t.Helper()
+	inst, err := f.store.Spawn(medkitTpl(charges, rating))
 	if err != nil {
 		t.Fatalf("spawn medkit: %v", err)
 	}
@@ -80,9 +89,10 @@ func treatEnv(t *testing.T, f *considerFixture, playerID string, prof, face int)
 	return env
 }
 
-// A trained runner treats their own wounds: prof 25 → proficiency bonus 5,
-// Logic 0 → -5, net bonus 0. Face 15 → total 15 ≥ DC 10 (success), margin 5,
-// heal cap = 4 + 5 = 9, heal = 4 + 5 = 9. HP 5 → 14, and a charge is spent.
+// A trained runner treats their own wounds with a rating-1 kit: prof 25 →
+// proficiency bonus 5, Logic 0 → -5, rating +1, net bonus 1. Face 15 → total
+// 16 ≥ DC 10 (success), margin 6, heal cap = 4 + 5 + 1 = 10, heal =
+// min(4 + 6, 10) = 10. HP 5 → 15, and a charge is spent.
 func TestTreat_SelfSuccessHeals(t *testing.T) {
 	f := newConsiderFixture(t)
 	a := newCombatActor("Medic", "p-medic", f.room)
@@ -91,16 +101,16 @@ func TestTreat_SelfSuccessHeals(t *testing.T) {
 
 	dispatchRole(t, treatEnv(t, f, a.PlayerID(), 25, 15), a, "treat")
 
-	if cur, _ := a.Vitals().Snapshot(); cur != 14 {
-		t.Errorf("HP = %d, want 14 (healed 9 from 5)", cur)
+	if cur, _ := a.Vitals().Snapshot(); cur != 15 {
+		t.Errorf("HP = %d, want 15 (healed 10 from 5)", cur)
 	}
 	if got := kitCharges(t, kit); got != 9 {
 		t.Errorf("charges = %d, want 9 (one spent)", got)
 	}
-	// The reported delta must be the HP actually restored (9), NOT the new
-	// current HP (14) — Vitals.Heal returns the latter, HealAmount the former.
-	if !strings.Contains(a.lastLine(), "patch yourself up. (+9 HP)") {
-		t.Errorf("line = %q, want a self-treat confirmation reporting +9 HP", a.lastLine())
+	// The reported delta must be the HP actually restored (10), NOT the new
+	// current HP (15) — Vitals.Heal returns the latter, HealAmount the former.
+	if !strings.Contains(a.lastLine(), "patch yourself up. (+10 HP)") {
+		t.Errorf("line = %q, want a self-treat confirmation reporting +10 HP", a.lastLine())
 	}
 }
 
@@ -184,20 +194,52 @@ func TestTreat_HealsAnotherInRoom(t *testing.T) {
 	healed := captureEvents(t, env.Bus, eventbus.EventEntityHealed)
 	dispatchRole(t, env, a, "treat guard")
 
-	if cur, _ := f.guard.Vitals().Snapshot(); cur != 24 {
-		t.Errorf("guard HP = %d, want 24 (healed 9 from 15)", cur)
+	if cur, _ := f.guard.Vitals().Snapshot(); cur != 25 {
+		t.Errorf("guard HP = %d, want 25 (healed 10 from 15)", cur)
 	}
 	if got := kitCharges(t, kit); got != 9 {
 		t.Errorf("charges = %d, want 9 (a charge spent treating the ally)", got)
 	}
-	if !strings.Contains(a.lastLine(), "trauma sealant into a village guard's wounds. (+9 HP)") {
-		t.Errorf("line = %q, want an ally-treat confirmation reporting +9 HP", a.lastLine())
+	if !strings.Contains(a.lastLine(), "trauma sealant into a village guard's wounds. (+10 HP)") {
+		t.Errorf("line = %q, want an ally-treat confirmation reporting +10 HP", a.lastLine())
 	}
-	// EntityHealed.Amount must carry the true delta (9), not the new current (24).
+	// EntityHealed.Amount must carry the true delta (10), not the new current (25).
 	if len(*healed) != 1 {
 		t.Fatalf("EntityHealed count = %d, want 1", len(*healed))
 	}
-	if ev := (*healed)[0].(eventbus.EntityHealed); ev.Amount != 9 {
-		t.Errorf("EntityHealed.Amount = %d, want 9 (the HP restored, not the new current)", ev.Amount)
+	if ev := (*healed)[0].(eventbus.EntityHealed); ev.Amount != 10 {
+		t.Errorf("EntityHealed.Amount = %d, want 10 (the HP restored, not the new current)", ev.Amount)
+	}
+}
+
+// A higher-rated kit heals more than a low one at the same skill and roll: the
+// rating aids the check (bigger margin) AND lifts the heal cap. Rating 1 vs 6,
+// prof 25, face 15, badly wounded so neither is HP-capped:
+//
+//	r1: bonus 5-5+1=1, total 16, margin 6, cap 4+5+1=10, heal min(10,10)=10
+//	r6: bonus 5-5+6=6, total 21, margin 11, cap 4+5+6=15, heal min(15,15)=15
+func TestTreat_HigherRatingHealsMore(t *testing.T) {
+	f := newConsiderFixture(t)
+	a1 := newCombatActor("Medic", "p-r1", f.room)
+	a1.Vitals().ApplyDamage(18) // 20 → 2, so the heal is not HP-capped
+	giveMedkitRated(t, f, a1, 10, 1)
+	dispatchRole(t, treatEnv(t, f, a1.PlayerID(), 25, 15), a1, "treat")
+	r1, _ := a1.Vitals().Snapshot() // 2 + 10 = 12
+
+	f2 := newConsiderFixture(t)
+	a6 := newCombatActor("Medic", "p-r6", f2.room)
+	a6.Vitals().ApplyDamage(18) // 20 → 2
+	giveMedkitRated(t, f2, a6, 10, 6)
+	dispatchRole(t, treatEnv(t, f2, a6.PlayerID(), 25, 15), a6, "treat")
+	r6, _ := a6.Vitals().Snapshot() // 2 + 15 = 17
+
+	if r1 != 12 {
+		t.Errorf("rating-1 result HP = %d, want 12 (healed 10)", r1)
+	}
+	if r6 != 17 {
+		t.Errorf("rating-6 result HP = %d, want 17 (healed 15)", r6)
+	}
+	if r6 <= r1 {
+		t.Errorf("rating-6 heal (%d) must exceed rating-1 heal (%d)", r6-2, r1-2)
 	}
 }

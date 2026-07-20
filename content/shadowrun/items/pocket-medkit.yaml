@@ -1,0 +1,17 @@
+id: pocket-medkit
+name: a pocket medkit
+type: item
+description: |
+  A palm-sized snap-case of the basics — a few doses of sealant, a suture wand,
+  a diagnostic strip. It won't do surgery, but it'll close a gash in a pinch. The
+  cheap kit a runner keeps in a jacket pocket and forgets about until it matters.
+tags: [gear, medical]
+keywords: [pocket medkit, pocket-kit, medkit, kit]
+properties:
+  weight: 1
+  value: 250
+  first_aid_kit: true
+  # SR5 Rating 1 — the budget kit: a small check bonus and a low heal cap.
+  rating: 1
+  charges: 5
+  max_charges: 5

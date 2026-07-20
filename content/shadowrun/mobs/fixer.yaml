@@ -40,7 +40,10 @@ properties:
     buys: [weapon, ammo, armor, cyberware, weapon-accessory, armor-mod, cyberware-mod, tradegood, contraband, component]
     sells:
       # Medical supplies — a full-service fixer moves field medicine too.
+      - shadowrun:pocket-medkit
       - shadowrun:medkit
+      - shadowrun:trauma-kit
+      - shadowrun:medkit-supplies
       - shadowrun:stimpatch
       # Ammo SKUs (ammo-and-reloading §6): a pre-loaded clip (the primary buy),
       # loose rounds (refills), and an empty clip (a cheap spare to fill).

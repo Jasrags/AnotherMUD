@@ -1651,11 +1651,17 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 		if entry.Burned {
 			inst.SetProperty(economy.PropBurned, true)
 		}
+		// Restore a charged item's persisted count (a spent/refilled medkit, a
+		// filled waterskin) over the template default, so it keeps its state
+		// across relog. nil for any item that declares no charges.
+		if entry.Charges != nil {
+			inst.SetProperty(economy.PropCharges, *entry.Charges)
+		}
 		// Re-add persisted item modifications (item-modification §7) onto the
 		// fresh host; unknown mod templates are logged + skipped.
 		restoreInstalledMods(ctx, inst, tpls, entry.Mods, a.PlayerName())
 
-		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade, Mods: entry.Mods, Burned: entry.Burned}
+		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade, Mods: entry.Mods, Burned: entry.Burned, Charges: entry.Charges}
 		if len(entry.Contents) > 0 {
 			if tpl.Type != "container" || contents == nil {
 				// A non-container template carrying nested contents in
@@ -3572,6 +3578,7 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 			Contents: cloneInventoryEntries(e.Contents),
 			Loaded:   e.Loaded,
 			Grade:    e.Grade,
+			Charges:  e.Charges,
 		}
 	}
 	return out
@@ -4250,6 +4257,42 @@ func (a *connActor) itemBurnedForSave(id entities.EntityID) bool {
 	b, _ := inst.Property(economy.PropBurned)
 	v, _ := b.(bool)
 	return v
+}
+
+// chargesForSave reports a carried item's remaining `charges` for
+// persistence (a medkit's supplies, a filled waterskin), so a spent or
+// topped-up kit keeps its count across relog. Returns nil for any item that
+// declares no charges — the common case — so the field stays out of the
+// wire and respawn falls back to the template value. Mirrors
+// magazineLoadedForSave.
+func (a *connActor) chargesForSave(id entities.EntityID) *int {
+	if a.items == nil {
+		return nil
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return nil
+	}
+	inst, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return nil
+	}
+	raw, ok := inst.Property(economy.PropCharges)
+	if !ok {
+		return nil // item has no charges concept
+	}
+	var n int
+	switch v := raw.(type) {
+	case int:
+		n = v
+	case int64:
+		n = int(v)
+	case float64:
+		n = int(v)
+	default:
+		return nil // non-numeric charges — leave to the template
+	}
+	return &n
 }
 
 // InsertHolder loads the fullest compatible loaded holder from inventory into the
@@ -6931,7 +6974,7 @@ func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.Inv
 		if !ok {
 			continue
 		}
-		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id), Mods: a.installedModsForSave(id), Burned: a.itemBurnedForSave(id)}
+		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id), Mods: a.installedModsForSave(id), Burned: a.itemBurnedForSave(id), Charges: a.chargesForSave(id)}
 		if a.contents != nil && a.isContainerLocked(id) {
 			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
 				entry.Contents = child

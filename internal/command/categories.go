@@ -189,12 +189,13 @@ var commandCategories = map[string]string{
 	"learn":     catCharacter,
 
 	// Rest & Survival.
-	"rest":  catSurvival,
-	"sleep": catSurvival,
-	"wake":  catSurvival,
-	"eat":   catSurvival,
-	"drink": catSurvival,
-	"treat": catSurvival,
+	"rest":   catSurvival,
+	"sleep":  catSurvival,
+	"wake":   catSurvival,
+	"eat":    catSurvival,
+	"drink":  catSurvival,
+	"treat":  catSurvival,
+	"refill": catSurvival,
 
 	// Crafting & Gathering.
 	"craft":   catCrafting,

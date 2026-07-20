@@ -1,0 +1,15 @@
+id: medkit-supplies
+name: a box of medkit supplies
+type: item
+description: |
+  A sealed refill pack — sealant cartridges, fresh ampoules, suture thread, sterile
+  wipes. Everything a spent medkit burned through, boxed to snap back into the tray.
+  `refill` your kit with it and you're stocked again.
+tags: [gear, medical, consumable]
+keywords: [supplies, restock, refill, med-supplies]
+properties:
+  weight: 1
+  value: 150
+  # The refill verb consumes one box to top a carried medkit back to its
+  # max_charges. Single-use (no charges of its own).
+  medkit_supplies: true

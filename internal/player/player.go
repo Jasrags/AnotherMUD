@@ -589,6 +589,15 @@ type InventoryEntry struct {
 	// onto the credential instance at login the same way Loaded is (v37). false /
 	// omitted for every non-credential and every unspent fake.
 	Burned bool `yaml:"burned,omitempty"`
+	// Charges persists a charged item's remaining count (a medkit's supplies,
+	// a filled waterskin) so a spent/topped-up kit keeps its state across
+	// relog instead of resetting to the template default. A pointer so absent
+	// (nil) — every item that declares no `charges` — stays out of the wire
+	// and reads as "use the template value" on respawn. Re-hydrated the same
+	// way Loaded/Burned are. Additive with a safe zero-value, so no
+	// save-version bump (an old save simply has none); also closes the
+	// fill-verb "waterskin resets on relog" caveat.
+	Charges *int `yaml:"charges,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The

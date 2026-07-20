@@ -10,10 +10,13 @@ tags: [gear, medical]
 keywords: [medkit, kit, med kit]
 properties:
   weight: 2
-  value: 250
+  value: 750
   # The treat verb (healing-detailed.md — First Aid + Logic) requires this
-  # flag and spends a charge of supplies per treatment. Reusable: an empty
-  # kit is kept (refillable later), not destroyed.
+  # flag and spends a charge of supplies per treatment. Reusable: an empty kit
+  # is kept, not destroyed, and `refill` restocks it from a supply box.
   first_aid_kit: true
+  # SR5 Rating (1-6): the standard mid-tier kit. Rating aids the First Aid
+  # check and lifts the heal cap (treat verb).
+  rating: 3
   charges: 10
   max_charges: 10

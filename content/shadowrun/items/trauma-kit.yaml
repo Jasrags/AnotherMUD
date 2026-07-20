@@ -1,0 +1,19 @@
+id: trauma-kit
+name: a trauma kit
+type: item
+description: |
+  A hardshell field-surgery rig — wound foam, a vitals cuff, cracked-open ampoules
+  of the good stuff, and a guided-suture arm that all but does the work for you.
+  Clinic-grade capability folded into a shoulder case. What a street doc carries to
+  a firefight when they expect to be earning their fee.
+tags: [gear, medical]
+keywords: [trauma kit, trauma-kit, trauma, medkit, kit]
+properties:
+  weight: 3
+  value: 1500
+  first_aid_kit: true
+  # SR5 Rating 6 — top-tier: a large check bonus and a high heal cap, so even a
+  # modestly-skilled runner closes serious damage with it.
+  rating: 6
+  charges: 15
+  max_charges: 15

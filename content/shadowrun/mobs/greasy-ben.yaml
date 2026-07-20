@@ -31,7 +31,9 @@ properties:
     buys: [weapon, ammo, armor, cyberware, tradegood, contraband, component]
     sells:
       # Back-alley medicine — Ben works a surgical tray next to the griddle.
+      - shadowrun:pocket-medkit
       - shadowrun:medkit
+      - shadowrun:medkit-supplies
       - shadowrun:stimpatch
       - shadowrun:armored-jacket
       - shadowrun:armor-vest
