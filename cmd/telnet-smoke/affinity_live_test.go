@@ -178,8 +178,32 @@ func bootEngine(t *testing.T, extraEnv map[string]string) string {
 	deadline := time.Now().Add(60 * time.Second) // first `go run` compiles
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", addr, 300*time.Millisecond)
-		if err == nil {
-			_ = conn.Close()
+		if err != nil {
+			time.Sleep(250 * time.Millisecond)
+			continue
+		}
+		// TCP-accept alone races the boot: the listener can accept a connection
+		// before the login handler is wired, then drop it (EOF mid-login). Wait
+		// until the server actually SENDS its login banner. The banner arrives in
+		// a segment AFTER the telnet IAC negotiation block, so accumulate reads
+		// rather than trusting a single Read (which only sees the IAC bytes).
+		_ = conn.SetReadDeadline(time.Now().Add(1500 * time.Millisecond))
+		var acc []byte
+		buf := make([]byte, 512)
+		for {
+			n, rerr := conn.Read(buf)
+			if n > 0 {
+				acc = append(acc, buf[:n]...)
+				if bytes.Contains(bytes.ToLower(acc), []byte("username")) {
+					break
+				}
+			}
+			if rerr != nil {
+				break
+			}
+		}
+		_ = conn.Close()
+		if bytes.Contains(bytes.ToLower(acc), []byte("username")) {
 			return addr
 		}
 		time.Sleep(250 * time.Millisecond)
