@@ -29,16 +29,31 @@ func runSkip(fn skipFn, e Entity) bool {
 type InfoStep struct {
 	ID   string
 	Text string
-	Skip skipFn
+	// TextFn, when set, supplies the info text dynamically from the in-progress
+	// entity — the same late-binding seam ChoiceStep.OptionsFn uses for options.
+	// It takes precedence over the static Text. The character-creation review
+	// step uses it to render a recap of the choices made so far; a static info
+	// screen leaves it nil and sets Text.
+	TextFn func(e Entity) string
+	Skip   skipFn
+}
+
+// text returns the live info text: the dynamic TextFn when set, else Text.
+func (s *InfoStep) text(e Entity) string {
+	if s.TextFn != nil {
+		return s.TextFn(e)
+	}
+	return s.Text
 }
 
 func (s *InfoStep) StepID() string           { return s.ID }
 func (s *InfoStep) ShouldSkip(e Entity) bool { return runSkip(s.Skip, e) }
 func (s *InfoStep) Interactive() bool        { return false }
 
-func (s *InfoStep) Render(ctx context.Context, io IO, _ Entity) (StepEvent, error) {
-	ev := StepEvent{StepID: s.ID, StepType: stepTypeInfo, Prompt: s.Text}
-	return ev, io.Write(ctx, s.Text)
+func (s *InfoStep) Render(ctx context.Context, io IO, e Entity) (StepEvent, error) {
+	txt := s.text(e)
+	ev := StepEvent{StepID: s.ID, StepType: stepTypeInfo, Prompt: txt}
+	return ev, io.Write(ctx, txt)
 }
 
 // Handle is never called for a non-interactive step; present to satisfy

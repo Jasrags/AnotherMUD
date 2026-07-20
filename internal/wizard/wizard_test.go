@@ -76,6 +76,42 @@ func TestInfoAutoAdvancesToChoice(t *testing.T) {
 	}
 }
 
+// TestInfoTextFnRendersDynamicText pins that InfoStep.TextFn takes precedence
+// over Text and is evaluated against the live entity — the seam the
+// character-creation review step relies on to recap choices made so far.
+func TestInfoTextFnRendersDynamicText(t *testing.T) {
+	e := &testEntity{race: "elf"}
+	io, sink := &fakeIO{}, &recordSink{}
+	flow := &Flow{
+		ID: "f",
+		Steps: []Step{
+			&InfoStep{
+				ID:   "review",
+				Text: "STATIC (should be overridden)",
+				TextFn: func(en Entity) string {
+					return "You chose: " + en.(*testEntity).race
+				},
+			},
+			&ConfirmStep{ID: "ok", Prompt: "Go? (yes/no)",
+				OnYes: func(Entity) {}, OnNo: func(en Entity) { en.(*testEntity).confirm = "no" }},
+		},
+	}
+	in := NewInstance(flow, e, io, sink)
+	in.Start(ctx())
+
+	joined := strings.Join(io.lines, "\n")
+	if !strings.Contains(joined, "You chose: elf") {
+		t.Fatalf("TextFn output not written; lines = %q", io.lines)
+	}
+	if strings.Contains(joined, "STATIC") {
+		t.Errorf("static Text rendered despite TextFn set; lines = %q", io.lines)
+	}
+	// The review event's Prompt carries the dynamic text for rich clients.
+	if len(sink.events) == 0 || sink.events[0].Prompt != "You chose: elf" {
+		t.Errorf("info event prompt = %q, want dynamic text", sink.events[0].Prompt)
+	}
+}
+
 func TestChoicePrefixAndInvalidRepeat(t *testing.T) {
 	e := &testEntity{}
 	io, sink := &fakeIO{}, &recordSink{}

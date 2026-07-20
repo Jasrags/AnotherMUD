@@ -125,7 +125,7 @@ func newDefaultCreationFlow(world string, races *progression.RaceRegistry, class
 	}
 	steps := []wizard.Step{introStep(), genderStep()}
 	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, false)
-	steps = append(steps, confirmStep())
+	steps = append(steps, summaryStep(races, classes, backgrounds, feats), confirmStep())
 	return creationFlow(steps)
 }
 
@@ -147,7 +147,7 @@ func newWoTCreationFlow(world string, races *progression.RaceRegistry, classes *
 	}
 	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
 	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, true)
-	steps = append(steps, confirmStep())
+	steps = append(steps, summaryStep(races, classes, backgrounds, feats), confirmStep())
 	return creationFlow(steps)
 }
 
@@ -408,7 +408,7 @@ func backgroundOptionsFiltered(backgrounds *progression.BackgroundRegistry, keep
 		opts = append(opts, wizard.Option{
 			Label:       displayOr(b.DisplayName, b.ID),
 			Tag:         b.Tagline,
-			Description: b.Description,
+			Description: withBenefit(b.Description, backgroundBenefit(b)),
 			Value:       b.ID,
 		})
 	}
@@ -505,7 +505,7 @@ func raceOptions(races *progression.RaceRegistry) []wizard.Option {
 		opts = append(opts, wizard.Option{
 			Label:       displayOr(r.DisplayName, r.ID),
 			Tag:         r.Tagline,
-			Description: r.Description,
+			Description: withBenefit(r.Description, raceBenefit(r)),
 			Value:       r.ID,
 		})
 	}
@@ -530,7 +530,7 @@ func classOptionsFiltered(classes *progression.ClassRegistry, keep func(*progres
 		opts = append(opts, wizard.Option{
 			Label:       displayOr(c.DisplayName, c.ID),
 			Tag:         c.Tagline,
-			Description: c.Description,
+			Description: withBenefit(c.Description, classBenefit(c)),
 			Value:       c.ID,
 		})
 	}
