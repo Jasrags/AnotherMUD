@@ -3573,11 +3573,17 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 	}
 	out := make([]player.InventoryEntry, len(in))
 	for i, e := range in {
+		// Copy EVERY persisted field. Omitting one silently drops it from the
+		// snapshot the persist path writes — how installed Mods (and Burned) were
+		// being lost on a carried item across a disk save: a.save had them, but
+		// this clone stripped them before the write.
 		out[i] = player.InventoryEntry{
 			Template: e.Template,
 			Contents: cloneInventoryEntries(e.Contents),
 			Loaded:   e.Loaded,
 			Grade:    e.Grade,
+			Mods:     append([]string(nil), e.Mods...),
+			Burned:   e.Burned,
 			Charges:  e.Charges,
 		}
 	}

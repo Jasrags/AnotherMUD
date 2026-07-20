@@ -84,6 +84,47 @@ func TestRespawnInventory_PersistsMedkitCharges(t *testing.T) {
 	}
 }
 
+// cloneInventoryEntries must copy EVERY persisted field — a field omitted here
+// is silently dropped from the snapshot the persist path writes to disk, which
+// is how a carried item's installed Mods (and a burned SIN) were being lost
+// across a save. Round-trips a nested entry to lock it.
+func TestCloneInventoryEntries_PreservesModsAndBurned(t *testing.T) {
+	loaded := 7
+	charges := 3
+	in := []player.InventoryEntry{{
+		Template: "sr:armored-jacket",
+		Mods:     []string{"sr:ballistic-weave"},
+		Burned:   true,
+		Grade:    "masterwork",
+		Loaded:   &loaded,
+		Charges:  &charges,
+		Contents: []player.InventoryEntry{{Template: "sr:nested", Mods: []string{"sr:sub-mod"}, Burned: true}},
+	}}
+	out := cloneInventoryEntries(in)
+	if len(out) != 1 {
+		t.Fatalf("clone len = %d, want 1", len(out))
+	}
+	got := out[0]
+	if len(got.Mods) != 1 || got.Mods[0] != "sr:ballistic-weave" {
+		t.Errorf("Mods = %v, want [sr:ballistic-weave] (dropped → data loss)", got.Mods)
+	}
+	if !got.Burned {
+		t.Error("Burned = false, want true (dropped → a caught fake un-burns)")
+	}
+	if got.Grade != "masterwork" || got.Loaded == nil || *got.Loaded != 7 || got.Charges == nil || *got.Charges != 3 {
+		t.Errorf("other fields not preserved: %+v", got)
+	}
+	// Deep copy: mutating the clone's Mods must not touch the input.
+	got.Mods[0] = "mutated"
+	if in[0].Mods[0] != "sr:ballistic-weave" {
+		t.Error("clone shares the Mods backing array with the input (not a deep copy)")
+	}
+	// Nested contents copy their Mods/Burned too.
+	if len(got.Contents) != 1 || len(got.Contents[0].Mods) != 1 || !got.Contents[0].Burned {
+		t.Errorf("nested entry lost Mods/Burned: %+v", got.Contents)
+	}
+}
+
 func mustItem(t *testing.T, store *entities.Store, id entities.EntityID) *entities.ItemInstance {
 	t.Helper()
 	e, ok := store.GetByID(id)
