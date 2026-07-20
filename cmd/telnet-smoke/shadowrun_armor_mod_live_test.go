@@ -52,13 +52,15 @@ func TestLive_ArmorModHazardProtection(t *testing.T) {
 		return strings.Contains(s, "sears through you") || strings.Contains(s, "the glow sears")
 	}
 
-	// The runner STARTS with an armored jacket (light — capacity 12; dons
-	// instantly). Wear it, then mod it WHILE WORN (item-modification §5). We do
-	// NOT spawn a second jacket — that would make "jacket" ambiguous.
+	// Self-provision an armored jacket (light — capacity 12; dons instantly): the
+	// default-created runner's origin grants a vest, not a jacket, and Westlake no
+	// longer drops a go-bag (creation gear replaced it), so spawn exactly one so
+	// "jacket" stays unambiguous. Wear it, then mod it WHILE WORN (item-mod §5).
 	send("restore")
+	send("spawn item armored-jacket me")
 	send("spawn item chemical-seal me")
 	if out := send("equip jacket"); !strings.Contains(strings.ToLower(out), "equip") {
-		t.Fatalf("could not equip the starting jacket:\n%s", out)
+		t.Fatalf("could not equip the spawned jacket:\n%s", out)
 	}
 	if out := send("modify jacket seal"); !strings.Contains(strings.ToLower(out), "install") {
 		t.Fatalf("modify-while-worn did not install the mod:\n%s", out)

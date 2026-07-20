@@ -32,25 +32,15 @@ exits:
 # no spawns — a place to orient, read `score`, and pick a direction. `safe` also
 # satisfies the training safe-room gate.
 tags: [safe-room, safe]
-# The starter drop. As the district's start room and safe hub, the Plaza is
-# where a fresh runner — booted via `make run-shadowrun` — grabs a first loadout
-# before heading out. A fixer left a go-bag stashed against the dead fountain:
-# weapons + armor to `get`+`equip` for free (the demo conceit). Deliberately NOT
-# a vendor and NOT chrome — open commerce and ripperdoc wares don't belong under
-# Downtown's corporate/Knight-Errant surveillance. The `list`/`buy` shop lives
-# one `up` step away at the fixer's flop (the-fixers-table / the Gun Table), and
-# cyberware lives with the docs (chrome-den, the-back-room). This keeps the plaza
-# reading as Downtown while the real business stays in the shadows where it fits.
+# No starter drop. A fresh runner is fully kitted at character creation now
+# (role×origin: the role-floor weapon + the origin's gear package + a universal
+# commlink), so the old go-bag against the fountain is retired — the Plaza reads
+# as a pure safe hub to orient in, not a free loadout. The real start room is the
+# fixer's flop one `up` step away (make run-shadowrun → shadowrun:the-flop), where
+# creation gear + Rook's first-entry commlink call land. Commerce still lives off
+# the plaza: the `list`/`buy` Gun Table up at the flop, cyberware with the docs
+# (chrome-den, the-back-room).
 #
 # NOTE: street-corner still carries the old open-vendor tray; it is the SR-M3c
 # smoke-test harness (its live tests pin START_ROOM=street-corner directly), so
 # it stays as-is until those tests migrate — then its tray can be retired too.
-items:
-  # A katana + heavy pistol (with a clip) for the kill, a stun baton to take a
-  # mark alive, an armoured jacket for the soak.
-  - katana
-  - ares-predator-v
-  - predator-clip
-  - caseless-round
-  - stun-baton
-  - armored-jacket
