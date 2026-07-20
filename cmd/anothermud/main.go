@@ -5161,7 +5161,14 @@ func (s *productionCombatSink) OnHit(ctx context.Context, e combat.Hit) {
 	if e.IsCritical {
 		crit = " <danger>A critical hit!</danger>"
 	}
-	s.tell(ctx, e.AttackerID, fmt.Sprintf("<good>You hit %s for %d damage.</good>%s", tn, e.Damage, crit))
+	// A non-crit hit the defender's armour floored to 1: show what it ate so a
+	// bare "1 damage" doesn't read as a near-whiff. (The crit-floored case is
+	// reworded and returned above, so this only fires for ordinary hits.)
+	soaked := ""
+	if e.Damage <= 1 && e.Soak > 0 {
+		soaked = fmt.Sprintf(" <subtle>(%d soaked)</subtle>", e.Soak)
+	}
+	s.tell(ctx, e.AttackerID, fmt.Sprintf("<good>You hit %s for %d damage.</good>%s%s", tn, e.Damage, soaked, crit))
 	s.tell(ctx, e.TargetID, fmt.Sprintf("<danger>%s hits you for %d damage.</danger>", an, e.Damage))
 	s.announce(ctx, e.RoomID, fmt.Sprintf("%s hits %s.", an, tn), e.AttackerID, e.TargetID)
 
