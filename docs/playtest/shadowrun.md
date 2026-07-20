@@ -4,15 +4,17 @@ Manual QA for the **Shadowrun** street-samurai slice (SR-M1 attribute set →
 SR-M2 typed damage → SR-M3 the playable pack). This is a **separate world** on
 the same engine — a different boot, a different character, its own district. The
 core/starter-world guide (`core.md`) and the Wheel of Time guide (`wot.md`) are
-siblings; the section numbers here (**§37–§49**) continue the guide-wide anchor
+siblings; the section numbers here (**§37–§51**) continue the guide-wide anchor
 sequence.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
 > `BUG:` note inline on fail.
 
-Every box here is backed by a live smoke test under `cmd/telnet-smoke`
+Most boxes here are backed by a live smoke test under `cmd/telnet-smoke`
 (`shadowrun_*_live_test.go`) — this is the human-facing walkthrough of the same
-paths those tests drive.
+paths those tests drive. (The newest §38/§51 role×origin + commlink-onboarding
+paths are unit-tested rather than live-smoked — this walkthrough is their first
+hands-on pass.)
 
 ---
 
@@ -43,8 +45,13 @@ ANOTHERMUD_ROLE_SEED="Runner:admin" ANOTHERMUD_PACKS=shadowrun \
   ANOTHERMUD_START_ROOM=shadowrun:street-corner make run
 ```
 
-A fresh Street Kid starts with **500 nuyen** and a pick-one starting loadout
-(see §38); the street corner also lays out a full sample kit on the ground.
+A fresh runner's starting nuyen + loadout now vary by **origin** (500 / 1,000 /
+2,500 — see §38); the street corner also lays out a full sample kit on the ground.
+
+> **For the creation + onboarding sections (§38, §51),** boot with
+> `make run-shadowrun` instead — it starts at `the-flop` (Rook + Patch) and sets
+> `ANOTHERMUD_COMMLINK_FIXER=shadowrun:fixer-mentor` so the first-entry commlink
+> call fires. The `street-corner` boot above is the **combat/gear** boot (§39–§50).
 
 ### The district (the Seattle sprawl)
 
@@ -69,29 +76,57 @@ A fresh Street Kid starts with **500 nuyen** and a pick-one starting loadout
 
 ---
 
-## 38. Character creation — a Street Samurai
+## 38. Character creation — role × origin
 
 Login is account-first (identical to core §1). Create a new account/character;
-the Shadowrun wizard is the **default** flow (no channeling step).
+the Shadowrun wizard is the **default** flow (no channeling step). A runner is
+now **metatype × role × origin** — **two roles** (Street Samurai, Face) compose
+with **three origins** (Street Kid, Corporate Dropout, Ex-Security).
 
-- [ ] Walk the wizard — after the name it prompts, in order:
-      **gender** (Male/Female), then **metatype** ("Choose your race:" — 1) Dwarf
-      2) Elf 3) Human 4) Ork 5) Troll, alphabetical), then **class** ("Choose
-      your class:" — 1) Street Samurai — the only class in the MVP), then
-      **background** (1) Street Kid).
-- [ ] The **Street Kid** background carries two pick-one choosers: a **feat**
-      (Alertness *or* Stealthy) and a **starting kit** (Ares Predator V + round +
-      jacket / katana + jacket / stun baton + vest). Pick one of each.
-- [ ] Confirm — the character spawns at the **Street Corner**.
-- [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class** (e.g.
-      "Male Dwarf Street-samurai" — class and background render from their ids,
-      hyphenated), with a **Background** line below it; the attribute block shows
-      the **eight Shadowrun primaries** — **BOD AGI REA STR WIL LOG INT CHA** —
-      plus **Edge** (**EDG**), not the classic STR/DEX/CON/INT/WIS/CHA six. The
-      advancement track reads **Level 1 - The Long Run** (§43), and **MA 0/0**
-      (a street samurai doesn't channel).
-- [ ] `score` purse — **500** nuyen (shown as `Gold`; nuyen is flavor over the
-      shared currency — a known cosmetic gap).
+> **Boot for the full experience:** `make run-shadowrun` starts at `the-flop`
+> (Rook the fixer + Patch the guide) and wires `ANOTHERMUD_COMMLINK_FIXER`, so a
+> fresh character gets the **first-entry commlink call** (§51). The bare §37 boot
+> at `street-corner` still creates characters fine, but no call arrives there
+> (the fixer env isn't set).
+
+- [ ] Walk the wizard — after the name it prompts, in order: **gender**, then
+      **metatype** ("Choose your race:" — Dwarf/Elf/Human/Ork/Troll), then
+      **role** ("Choose your class:" — **Face** *or* **Street Samurai**), then
+      **origin** ("… background:" — **Corporate Dropout**, **Ex-Security**, *or*
+      **Street Kid**).
+- [ ] Each **origin** carries a pick-one **feat** chooser (e.g. Street Kid:
+      Alertness *or* Stealthy; Ex-Security: Toughness *or* Great Fortitude);
+      Street Kid also keeps its pick-one weapon **kit**.
+- [ ] Confirm — the character spawns at the start room (`the-flop` under
+      `make run-shadowrun`).
+
+### The role floor — always armed for your role
+- [ ] `i` + `equipment` — every character carries their **role's floor weapon**,
+      guaranteed regardless of origin: a **Street Samurai** starts with a **stun
+      baton**, a **Face** with a **Streetline Special** holdout.
+
+### The universal commlink
+- [ ] `i` — every runner carries a **commlink**, its tier scaled to the origin's
+      means: a **Meta Link** (Street Kid), **Renraku Sensei** (Ex-Security), or
+      **Hermes Ikon** (Corporate Dropout). This is the device the fixer pings (§51).
+
+### Papers & money by origin (the SIN spectrum)
+- [ ] `licenses` (aka `sin`, `credentials`) — the papers each origin carries:
+      **Street Kid = none** (SINless — the defining edge *and* liability),
+      **Ex-Security = a national SIN** (a firearms license),
+      **Corporate Dropout = a corporate SIN** (firearms + corporate licenses).
+- [ ] `score` purse — nuyen by origin: **Street Kid 500 / Ex-Security 1,000 /
+      Corporate Dropout 2,500** (shown as `Gold`; the nuyen skin is cosmetic).
+
+### The score sheet
+- [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class**, a
+      **Background** line below it, the **eight SR primaries** (BOD AGI REA STR WIL
+      LOG INT CHA) + **Edge** (EDG), the track **Level 1 - The Long Run** (§43),
+      and **MA 0/0** (no channeling).
+- [ ] `skills` — a **Face** shows the social spread (Negotiation, Con,
+      Intimidation) + Perception; a **Street Samurai** the weapon-skill spread
+      (§50). The origin's life-skills (Street Kid: Sneaking/Perception;
+      Ex-Security: Survival/First Aid) fold in — an overlap takes the higher rating.
 
 ## 39. Melee combat — lethal vs. stun (the two monitors)
 
@@ -559,6 +594,55 @@ skills into one **Sneaking** (Agility).
       model and she's markedly more accurate than an unrated street punk with the
       same gun. The ganger, "more enthusiasm than training," stays on the plain
       always-proficient model. (The bonus is felt in hit-rate, not printed.)
+
+---
+
+## 51. The commlink call, licenses & the checkpoint (role × origin payoff)
+
+The commlink every runner carries at creation is now the **onboarding device**,
+and the SIN each origin carries decides who walks through a checkpoint. **Boot
+with `make run-shadowrun`** (starts at `the-flop`; sets `ANOTHERMUD_COMMLINK_FIXER=
+shadowrun:fixer-mentor`). The first character of a fresh save is auto-admin, so
+`teleport` works for the checkpoint hop below.
+
+### The first-entry commlink call
+- [ ] Create a **new** character (any role × origin) — the moment you land in the
+      world your **commlink chimes**: a framed transmission
+      (`>> Your commlink chimes — incoming transmission.`) carrying **Rook's**
+      welcome + call-to-action (gear up east → take the stairs down to Westlake),
+      closed by `>> Transmission ends.`.
+- [ ] It fires **once** — `quit`, log back in: **no second call** (shown-once,
+      persisted).
+- [ ] Story-beat, not a tip: `tips off`, then create another character — the call
+      **still fires** (it ignores the tips opt-out).
+- [ ] Device-gate (edge check): the call only reaches a runner **carrying a
+      commlink**. Every origin grants one, so it's normally satisfied — to see it
+      withheld, `drop` the commlink and relog on a character who hasn't seen the
+      call yet: **no chime**.
+
+### Licenses at a checkpoint (the SIN spectrum bites)
+The Corporate Enclave turnstile north of `fifth-avenue` gates on a **`corporate`**
+access license; the Ares Arms clerk on `fifth-avenue` gates sales on a valid SIN
++ the right permit. `teleport shadowrun:fifth-avenue` to reach both.
+
+- [ ] **Street Kid (SINless):** `north` toward the enclave gate — **refused** (no
+      SIN to present). At the Ares Arms counter, `list` then try to `buy` a
+      restricted piece — **refused** (a SINless buyer can't clear a licensed sale);
+      the samurai's own stun-baton floor reads **restricted**, i.e. hot at any scan.
+- [ ] **Corporate Dropout (corporate SIN):** its `corporate` permit **clears the
+      enclave turnstile** (`north` succeeds) — the real papers open the strip — and
+      the firearms license clears a restricted gun buy.
+- [ ] **Ex-Security (national SIN, firearms only):** the licensed clerk **sells you
+      restricted iron** its firearms permit covers, but the enclave turnstile
+      **still refuses** it — a firearms license is not a `corporate` one. Only the
+      corp origin walks the strip.
+
+> **Known gap (deferred):** a *real* SIN is modeled today as a high-rating
+> credential that can still **burn** under a hard scan — the true real-vs-fake
+> distinction (a real SIN being non-burnable + traceable, feeding security heat)
+> is a tracked follow-up. So a corp dropout's SIN failing an enclave scan and
+> burning is possible-but-wrong-flavor for now. See the sr-role-origin-creation
+> build log.
 
 ---
 

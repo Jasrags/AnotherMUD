@@ -8,7 +8,7 @@ unit of a playtest session — one file, one boot, no mid-session restarts.
 |---|---|---|
 | **[core.md](core.md)** | `make run` (starter-world) | The engine-mechanics showcase on the fantasy fighter demo — login, movement, items, combat, loot, progression, economy, quests, social, doors, light, crafting, gathering, maps, saves, conditions, skills, movement cost, visibility, feats, mounts, admin, GMCP, tab-completion. |
 | **[wot.md](wot.md)** | `make run-wot` (Wheel of Time) | Channeling (the One Power), masterwork item grades, ranged combat (projectile / range bands / cross-room), faction & standing, reputation & renown. |
-| **[shadowrun.md](shadowrun.md)** | `ANOTHERMUD_PACKS=shadowrun …` | The Street Samurai MVP — creation on the eight SR primaries, lethal vs. stun combat, firearms & ammo, cyberware, the nuyen shop, karma advancement, item modification (armor mods & weapon accessories, hazard protection). |
+| **[shadowrun.md](shadowrun.md)** | `ANOTHERMUD_PACKS=shadowrun …` | The Street Samurai + Face slice — **role × origin creation** (metatype × 2 roles × 3 origins, role-floor weapon, universal commlink, SIN/licenses by origin), the **first-entry commlink onboarding call**, lethal vs. stun combat, firearms & ammo, cyberware, the nuyen shop, karma advancement, item modification (armor mods & weapon accessories, hazard protection). |
 
 ## Section numbers are guide-wide anchors
 
@@ -19,7 +19,7 @@ slice of the sequence:
 
 - **core.md** — §0–§26, §28–§31, §36
 - **wot.md** — §27, §32, §33 (ranged, both boots), §34, §35
-- **shadowrun.md** — §37–§50
+- **shadowrun.md** — §37–§51
 
 (§33 "Ranged combat" is one chapter in **wot.md**: its *thrown* half runs on the
 default boot, its *projectile/range-band* half on the WoT boot.)

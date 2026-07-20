@@ -9,8 +9,9 @@ session (its own server boot and its own character):
 - **[docs/playtest/wot.md](playtest/wot.md)** — Wheel of Time (`make run-wot`):
   channeling (§27), masterwork (§32), ranged combat (§33), faction (§34),
   reputation (§35).
-- **[docs/playtest/shadowrun.md](playtest/shadowrun.md)** — the Street Samurai
-  MVP (`ANOTHERMUD_PACKS=shadowrun …`): §37–§50.
+- **[docs/playtest/shadowrun.md](playtest/shadowrun.md)** — the Street Samurai +
+  Face slice (`ANOTHERMUD_PACKS=shadowrun …`): §37–§51 (incl. role×origin
+  creation + the first-entry commlink onboarding call).
 
 Section numbers are guide-wide anchors — `§6` is always Combat, wherever it
 lives. Start at [the index](playtest/README.md).
