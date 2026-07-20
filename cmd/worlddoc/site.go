@@ -22,6 +22,7 @@ var siteSections = []struct {
 	{"map", "Map", "map.html", true},
 	{"gazetteer", "Gazetteer", "gazetteer.html", true},
 	{"catalogs", "Catalogs", "catalogs.html", false},
+	{"commands", "Commands", "commands.html", false},
 	{"health", "Health", "health.html", true},
 	{"guide", "Guide", "guide.html", true},
 }

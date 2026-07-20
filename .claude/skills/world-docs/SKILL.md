@@ -34,6 +34,13 @@ health/guide). It lives under `docs/world/`:
   other declared type (races, classes, feats, abilities, effects, biomes, …) is
   documented generically (id/name/description/fields), so coverage tracks the
   manifest with no per-type code.
+- `docs/world/<pack>/commands.html` — the engine's built-in player commands,
+  grouped by category (the same taxonomy `help` uses) with a usage line and
+  description per verb. This content is **engine-wide, not pack-specific**: the
+  verbs come from the live command registry (`command.RegisterBuiltins`), so the
+  page is identical across packs and tracks the code, not the YAML. Admin verbs
+  are included (in their own "Admin" category, last) — this is an authoring
+  reference, not the in-game player `help`.
 - `docs/world/<pack>/health.html` — an authoring-gap audit (report only, never
   fails): unreachable/orphan rooms, dangling exit targets, one-way exits,
   undescribed rooms, empty areas, unknown mob refs, dangling quest givers/reward
@@ -42,8 +49,8 @@ health/guide). It lives under `docs/world/`:
   world itself: where you start, a region→area tour, and where to find services.
 
 The tool is built as a shared parse feeding a registry of **emitters** (`overview`,
-`map`, `gazetteer`, `catalogs`, `health`, `guide`), each rendered into the shared
-page shell (`html/template`, so content is auto-escaped). See
+`map`, `gazetteer`, `catalogs`, `commands`, `health`, `guide`), each rendered into
+the shared page shell (`html/template`, so content is auto-escaped). See
 `docs/plans/world-docs-plan.md` for the design.
 
 ## When to use
@@ -67,7 +74,7 @@ Flags: `-pack` (`wot` default, or `all` for every kind:world pack), `-start`
 (BFS seed / spawn marker, default `the-green`; ignored for `-pack all`, which
 seeds each pack from a built-in default), `-content` (default `./content`),
 `-emit` (`all` default, or a single emitter — `overview`, `map`, `gazetteer`,
-`catalogs`, `health`, or `guide`), `-outdir` (default `docs/world`).
+`catalogs`, `commands`, `health`, or `guide`), `-outdir` (default `docs/world`).
 
 Then open the map for the user:
 

@@ -36,8 +36,8 @@ type emitter struct {
 
 // emitters is the ordered registry. `-emit all` runs each in turn; `-emit <name>`
 // runs just one. map/gazetteer/health/guide are world-only (they need rooms);
-// overview + catalogs apply to library packs too.
-var emitters = []emitter{overviewEmitter, mapEmitter, gazetteerEmitter, catalogsEmitter, healthEmitter, guideEmitter}
+// overview + catalogs + commands apply to library packs too.
+var emitters = []emitter{overviewEmitter, mapEmitter, gazetteerEmitter, catalogsEmitter, commandsEmitter, healthEmitter, guideEmitter}
 
 // defaultStarts seeds the layout BFS (and spawn marker) per known world pack for
 // `-pack all`, where the single -start flag can't apply. Unknown packs fall back

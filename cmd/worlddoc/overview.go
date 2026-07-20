@@ -32,6 +32,7 @@ var overviewCards = []struct {
 	{"map.html", "Map", "Interactive pan/zoom map of every room, region-tinted, with feature badges, filters, and search.", true},
 	{"gazetteer.html", "Gazetteer", "Region → area → room reference: exits (with door/locked/hidden markers), resident NPCs, and per-room notes.", true},
 	{"catalogs.html", "Catalogs", "Reference tables of the content this pack ships — creatures, items, characters, abilities, world systems, and more.", false},
+	{"commands.html", "Commands", "The engine's built-in player commands, grouped by category with usage and description.", false},
 	{"health.html", "World Health", "Authoring-gap audit: unreachable/orphan rooms, dangling exits, undescribed rooms, and more.", true},
 	{"guide.html", "Player's Guide", "A player-facing orientation: where you start, a tour of the world, and where to find services.", true},
 }
