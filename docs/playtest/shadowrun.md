@@ -162,6 +162,29 @@ ganger.
 > The Stun monitor seeds from **Willpower**; the Physical monitor is the flat
 > hp/Vitals track (Design 1 — not yet Body-derived, a tracked SR-M3 tail).
 
+### The downed foe — `rob` (non-lethal) or `finish` (coup-de-grace)
+
+Once a foe is knocked out (**unconscious / helpless**), you choose what happens
+next — the whole reason to reach for the baton over the katana:
+
+- [ ] **`rob <foe>`** (alias `mug`) — non-lethal. Take their carried gear **and
+      roll their coin purse now**, leaving them **breathing**: no "slain" line, no
+      corpse. e.g. *"You loot a caseless round, an Ares Light Fire 70, an armored
+      jacket and 68¥ from a Halloweener."* A second `rob` finds them **"already
+      picked clean"** (one roll per foe — the single-claim guard).
+- [ ] **`finish <foe>`** (alias `execute`) — coup-de-grace. A **guaranteed lethal**
+      blow through the normal death pipeline: *"You deliver a killing blow…"* →
+      **kill credit + karma → a corpse** to `loot` as usual. Distinct from a plain
+      swing, which the stun baton would only *re-*knock-out.
+- [ ] Both **refuse a conscious foe** (*"isn't helpless — put them down first"*),
+      so neither is a free instakill or free steal. Try each on a live ganger for
+      the refusal, then on a knocked-out one.
+
+> The trade-off is heat: `finish` is a real kill (corpse, kill credit, and it
+> draws **security heat** like any killing in a policed zone), while `rob` leaves
+> the mark alive — a lower profile, but a live witness. Stun-and-rob trades
+> finality for staying off Knight-Errant's board.
+
 ## 40. Firearms, clips & reloading (Ares Predator V)
 
 A firearm is **holder-fed**: rounds live in a **clip**, the clip goes *into* the
