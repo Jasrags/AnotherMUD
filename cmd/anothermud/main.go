@@ -3498,6 +3498,37 @@ func run() error {
 			loginSplash = colorRenderer.RenderPlain(raw)
 		}
 	}
+	// Presentation deps for the character-creation review sheet: format funds in
+	// the world's currency (¥ for shadowrun) and resolve granted gear ids to
+	// display names, calling out a SIN's credential rating. All closures over the
+	// item registry + currency label so the session layer stays registry-free.
+	creationSummaryDeps := session.CreationSummaryDeps{
+		FormatFunds: currencyLabel.Format,
+		ItemName: func(id string) string {
+			if t, err := registries.Items.Get(item.TemplateID(id)); err == nil {
+				return t.Name
+			}
+			return ""
+		},
+		SINRating: func(id string) (int, bool) {
+			t, err := registries.Items.Get(item.TemplateID(id))
+			if err != nil {
+				return 0, false
+			}
+			isSIN := false
+			for _, tag := range t.Tags {
+				if tag == economy.TagCredential {
+					isSIN = true
+					break
+				}
+			}
+			if !isSIN {
+				return 0, false
+			}
+			return anyToInt(t.Properties[economy.PropCredentialRating]), true
+		},
+	}
+
 	handler := session.Handler(session.Config{
 		World:      w,
 		ChannelMap: channelMap,
@@ -3643,7 +3674,7 @@ func run() error {
 		// assembly by the server's primary active world (character-identity
 		// §2: registries.Worlds holds the kind:world namespaces in load
 		// order; one world boots today, co-host deferred). "" → default flow.
-		CreationFlow: session.CreationFlowFor(primaryWorld, registries.Races, registries.Classes, registries.Backgrounds, registries.Feats),
+		CreationFlow: session.CreationFlowFor(primaryWorld, registries.Races, registries.Classes, registries.Backgrounds, registries.Feats, creationSummaryDeps),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		// Raising ChainCap multiplies a client's effective command throughput:
@@ -6333,4 +6364,21 @@ func splitHostPort(addr string) (host, port string) {
 		return "", addr
 	}
 	return h, p
+}
+
+// anyToInt coerces a YAML-decoded property value to an int, tolerating the
+// numeric types a decoder may produce (int/int64/float64). Non-numeric or nil
+// yields 0. Used to read an item template's credential_rating for the
+// character-creation review sheet's SIN callout.
+func anyToInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
 }

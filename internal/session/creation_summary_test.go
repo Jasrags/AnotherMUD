@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -95,7 +96,7 @@ func TestRenderCreationSummary_FullSheet(t *testing.T) {
 	ce := &creationEntity{gender: "female", raceID: "human", classID: "face",
 		backgroundID: "corporate-dropout", backgroundFeat: "iron-will"}
 
-	got := renderCreationSummary(ce, rr, cr, br, fr)
+	got := renderCreationSummary(ce, rr, cr, br, fr, nil)
 
 	wants := []string{
 		"Gender    Female",
@@ -105,12 +106,20 @@ func TestRenderCreationSummary_FullSheet(t *testing.T) {
 		"weapons: simple · armor: light · strong Will save",
 		"Origin    Corporate Dropout",
 		"Talent    Iron Will", // resolved via feat registry, not raw id
-		"Funds     2500",
+		"Funds     2500",      // nil deps → bare number (no currency symbol)
+		// Skills are Title-cased via prettyList (con → Con).
+		"Skills    Negotiation, Con, Intimidation, Perception",
+		// Nil deps → gear falls back to namespace-stripped ids (bareID).
+		"Gear      streetline-special, corporate-sin, hermes-ikon, armor-vest",
 	}
 	for _, w := range wants {
 		if !strings.Contains(got, w) {
 			t.Errorf("summary missing %q\n--- got ---\n%s", w, got)
 		}
+	}
+	// Nil deps must not emit a currency symbol or a resolved display name.
+	if strings.Contains(got, "¥") || strings.Contains(got, "a corporate SIN") {
+		t.Errorf("nil deps leaked formatted output:\n%s", got)
 	}
 }
 
@@ -186,6 +195,47 @@ func TestRaceBenefit_SkewVisionSize(t *testing.T) {
 	}
 }
 
+// With presentation deps, funds format in the world's currency, gear shows
+// display names, and a granted SIN is annotated with its credential rating.
+func TestRenderCreationSummary_DepsFormatFundsGearAndSIN(t *testing.T) {
+	rr, cr, br, fr := srSummaryFixtures(t)
+	ce := &creationEntity{gender: "female", raceID: "human", classID: "face",
+		backgroundID: "corporate-dropout", backgroundFeat: "iron-will"}
+
+	names := map[string]string{
+		"shadowrun:corporate-sin":      "a corporate SIN",
+		"shadowrun:hermes-ikon":        "a Hermes Ikon",
+		"shadowrun:armor-vest":         "an armor vest",
+		"shadowrun:streetline-special": "a Streetline Special",
+	}
+	deps := &CreationSummaryDeps{
+		FormatFunds: func(n int) string { return fmt.Sprintf("%d¥", n) },
+		ItemName:    func(id string) string { return names[id] },
+		SINRating: func(id string) (int, bool) {
+			if id == "shadowrun:corporate-sin" {
+				return 5, true
+			}
+			return 0, false
+		},
+	}
+
+	got := renderCreationSummary(ce, rr, cr, br, fr, deps)
+	for _, w := range []string{
+		"Funds     2500¥",
+		"a corporate SIN (rating 5)", // SIN callout
+		"a Hermes Ikon",              // display name, not hermes-ikon
+		"a Streetline Special",       // role floor item resolved too
+	} {
+		if !strings.Contains(got, w) {
+			t.Errorf("summary missing %q\n--- got ---\n%s", w, got)
+		}
+	}
+	// The kebab id must not leak once a name resolver is present.
+	if strings.Contains(got, "hermes-ikon") {
+		t.Errorf("raw id leaked despite ItemName resolver:\n%s", got)
+	}
+}
+
 // A background with exactly ONE feat option auto-grants it (no pick step runs,
 // so ce.backgroundFeat stays empty). The review sheet must still show it,
 // resolved from the origin — mirroring the equipment package-0 fallback.
@@ -210,7 +260,7 @@ func TestResolvedFeatID_SingleOptionAutoGrant(t *testing.T) {
 	must(t, br.Register(solo))
 	fr := feat.NewRegistry()
 	must(t, fr.Register(&feat.Feat{ID: "toughness", DisplayName: "Toughness"}))
-	got := renderCreationSummary(&creationEntity{backgroundID: "ex-security"}, nil, nil, br, fr)
+	got := renderCreationSummary(&creationEntity{backgroundID: "ex-security"}, nil, nil, br, fr, nil)
 	if !strings.Contains(got, "Talent") || !strings.Contains(got, "Toughness") {
 		t.Errorf("auto-granted talent missing from summary:\n%s", got)
 	}

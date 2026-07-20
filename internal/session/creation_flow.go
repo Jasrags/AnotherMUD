@@ -92,13 +92,27 @@ var genderOptions = []wizard.Option{
 // string is the namespace of the single kind:world pack (registries.Worlds[0]
 // today; co-host is deferred). A nil return propagates (the §2 "no flow →
 // immediate commit" path) regardless of branch.
-func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+// The optional deps carry the review sheet's presentation collaborators (funds
+// formatting, item display names, SIN ratings). It is variadic so the many
+// registry-only test callers stay unchanged; production passes exactly one.
+// Only deps[0] is consulted.
+func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, deps ...CreationSummaryDeps) *wizard.Flow {
+	d := firstDeps(deps)
 	switch strings.ToLower(strings.TrimSpace(world)) {
 	case "wot":
-		return newWoTCreationFlow(world, races, classes, backgrounds, feats)
+		return newWoTCreationFlow(world, races, classes, backgrounds, feats, d)
 	default:
-		return newDefaultCreationFlow(world, races, classes, backgrounds, feats)
+		return newDefaultCreationFlow(world, races, classes, backgrounds, feats, d)
 	}
+}
+
+// firstDeps returns a pointer to the sole provided CreationSummaryDeps, or nil
+// when none was passed (the nil-safe default the summary renderer handles).
+func firstDeps(deps []CreationSummaryDeps) *CreationSummaryDeps {
+	if len(deps) == 0 {
+		return nil
+	}
+	return &deps[0]
 }
 
 // NewCreationFlow builds the engine-default creation flow from the race
@@ -112,20 +126,20 @@ func CreationFlowFor(world string, races *progression.RaceRegistry, classes *pro
 // no backgrounds) so the caller takes the §2 "no flow → immediate commit"
 // path.
 func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
-	return newDefaultCreationFlow("", races, classes, backgrounds, feats)
+	return newDefaultCreationFlow("", races, classes, backgrounds, feats, nil)
 }
 
 // newDefaultCreationFlow is NewCreationFlow with the active world threaded in for
 // menu scoping (a world's own classes/backgrounds hide the tapestry-core
 // baseline; see worldClassFilter). world == "" disables scoping — the shape the
 // unit-test NewCreationFlow wrapper uses.
-func newDefaultCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+func newDefaultCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, deps *CreationSummaryDeps) *wizard.Flow {
 	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
 	steps := []wizard.Step{introStep(), genderStep()}
 	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, false)
-	steps = append(steps, summaryStep(races, classes, backgrounds, feats), confirmStep())
+	steps = append(steps, summaryStep(races, classes, backgrounds, feats, deps), confirmStep())
 	return creationFlow(steps)
 }
 
@@ -141,13 +155,13 @@ func newDefaultCreationFlow(world string, races *progression.RaceRegistry, class
 // engine evaluates Skip against the channeling gift chosen two steps earlier);
 // no wizard-engine change is needed. Returns nil on empty content for the same
 // reason NewCreationFlow does.
-func newWoTCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+func newWoTCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, deps *CreationSummaryDeps) *wizard.Flow {
 	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
 	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
 	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, true)
-	steps = append(steps, summaryStep(races, classes, backgrounds, feats), confirmStep())
+	steps = append(steps, summaryStep(races, classes, backgrounds, feats, deps), confirmStep())
 	return creationFlow(steps)
 }
 

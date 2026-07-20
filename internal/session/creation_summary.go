@@ -104,28 +104,50 @@ func backgroundBenefit(b *progression.Background) string {
 	return strings.Join(parts, "\n")
 }
 
+// CreationSummaryDeps carries the presentation-only collaborators the review
+// sheet uses but the rest of creation does not: how to format funds and how to
+// resolve item ids to display names + SIN ratings. Every field is optional and
+// nil-safe — a nil *CreationSummaryDeps (or any nil closure) falls back to the
+// bare number / namespace-stripped id, which is the shape the flow tests use.
+// The composition root builds these from the world's CurrencyLabel and the item
+// template registry; keeping them behind closures spares the session layer an
+// item/economy import in this file.
+type CreationSummaryDeps struct {
+	// FormatFunds renders a starting-money amount for display (e.g. "2,500¥").
+	FormatFunds func(n int) string
+	// ItemName resolves an item template id to its display name (e.g.
+	// "a corporate SIN"). Returns "" for an unknown id.
+	ItemName func(id string) string
+	// SINRating returns a credential item's rating and whether the id is a SIN
+	// (a credential-tagged item), so the sheet can call out a granted SIN's
+	// quality — the one gear stat that materially changes how playable a start is.
+	SINRating func(id string) (rating int, isSIN bool)
+}
+
 // summaryStep is the review sheet shown immediately before the confirm prompt:
 // a recap of gender/metatype/role/origin/talent plus the merged skills, funds,
 // and full starting gear, with each pick's mechanical benefit folded in. It is
 // a non-interactive InfoStep whose TextFn reads the in-progress entity, so it
 // always reflects the choices actually made (including skipped steps, whose
-// fields stay empty and are omitted).
-func summaryStep(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.InfoStep {
+// fields stay empty and are omitted). deps may be nil.
+func summaryStep(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, deps *CreationSummaryDeps) *wizard.InfoStep {
 	return &wizard.InfoStep{
 		ID: "summary",
 		TextFn: func(e wizard.Entity) string {
 			// Safe: every flow built here runs against a *creationEntity (runCreation
 			// constructs it before Start), the same assumption the ChoiceStep
 			// OptionsFn/OnSelect closures make throughout creation_flow.go.
-			return renderCreationSummary(e.(*creationEntity), races, classes, backgrounds, feats)
+			return renderCreationSummary(e.(*creationEntity), races, classes, backgrounds, feats, deps)
 		},
 	}
 }
 
 // renderCreationSummary builds the aligned review sheet from the entity's
 // chosen ids, resolving each against its registry. Empty rows are omitted so a
-// minimal flow (gender only) still reads cleanly.
-func renderCreationSummary(ce *creationEntity, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) string {
+// minimal flow (gender only) still reads cleanly. deps (nil-safe) supplies the
+// funds/item-name/SIN-rating presentation; without it, funds and gear fall back
+// to bare numbers and namespace-stripped ids.
+func renderCreationSummary(ce *creationEntity, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, deps *CreationSummaryDeps) string {
 	r := lookupRace(races, ce.raceID)
 	c := lookupClass(classes, ce.classID)
 	b := lookupBackground(backgrounds, ce.backgroundID)
@@ -159,16 +181,48 @@ func renderCreationSummary(ce *creationEntity, races *progression.RaceRegistry, 
 		row("Talent", talent)
 	}
 	if skills := creationSkills(c, b); len(skills) > 0 {
-		row("Skills", strings.Join(skills, ", "))
+		row("Skills", prettyList(skills))
 	}
 	if b != nil && b.Gold > 0 {
-		row("Funds", fmt.Sprintf("%d", b.Gold))
+		row("Funds", formatFunds(deps, b.Gold))
 	}
 	if gear := creationGear(ce, c, b); len(gear) > 0 {
-		row("Gear", packageLabel(gear))
+		row("Gear", formatGear(deps, gear))
 	}
 	sb.WriteString("─────────────────────────────\n")
 	return sb.String()
+}
+
+// formatFunds renders a money amount through deps.FormatFunds when available,
+// else the bare integer.
+func formatFunds(deps *CreationSummaryDeps, n int) string {
+	if deps != nil && deps.FormatFunds != nil {
+		return deps.FormatFunds(n)
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// formatGear renders the starting kit as a comma-joined list of display names,
+// annotating any granted SIN with its rating ("a corporate SIN (rating 5)").
+// Falls back to the namespace-stripped id when no name resolver is available or
+// the id is unknown, so the sheet never shows a blank entry.
+func formatGear(deps *CreationSummaryDeps, ids []string) string {
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		name := bareID(id)
+		if deps != nil && deps.ItemName != nil {
+			if n := deps.ItemName(id); n != "" {
+				name = n
+			}
+		}
+		if deps != nil && deps.SINRating != nil {
+			if rating, isSIN := deps.SINRating(id); isSIN {
+				name = fmt.Sprintf("%s (rating %d)", name, rating)
+			}
+		}
+		parts = append(parts, name)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // creationSkills is the deduplicated union of the role's level-1 granted
@@ -374,4 +428,35 @@ func titleWord(s string) string {
 		return ""
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// bareID strips a namespace prefix from an item/ability id
+// ("shadowrun:corporate-sin" → "corporate-sin"). The display fallback when no
+// name resolver is available.
+func bareID(id string) string {
+	if i := strings.LastIndex(id, ":"); i >= 0 {
+		return id[i+1:]
+	}
+	return id
+}
+
+// prettifyID renders a kebab id as spaced Title Case for the review sheet
+// ("basic-strike" → "Basic Strike", "first-aid" → "First Aid"). Namespace is
+// stripped first. Good enough for a recap without threading the ability
+// registry's display names through the flow.
+func prettifyID(id string) string {
+	words := strings.Split(bareID(id), "-")
+	for i, w := range words {
+		words[i] = titleWord(w)
+	}
+	return strings.Join(words, " ")
+}
+
+// prettyList maps prettifyID over a slice and comma-joins it.
+func prettyList(ids []string) string {
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		parts = append(parts, prettifyID(id))
+	}
+	return strings.Join(parts, ", ")
 }
