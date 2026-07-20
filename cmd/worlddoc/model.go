@@ -535,12 +535,10 @@ func layout(rooms map[string]roomYAML, start string) map[string]pt {
 		visited[id] = true
 	}
 
-	ids := make([]string, 0, len(rooms))
-	for id := range rooms {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
+	// Any room still unvisited (no pin, or a pin-less disconnected component) is
+	// stacked below the map as its own component. Reuses sortedIDs — same
+	// deterministic order as the pin pass above.
+	for _, id := range sortedIDs {
 		if visited[id] {
 			continue
 		}
