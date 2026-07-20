@@ -38,14 +38,34 @@ func resolveCarried(c *Context, token string) (*entities.ItemInstance, bool) {
 // currently worn/wielded (item-modification §5 — worn hosts are modifiable, with
 // a live re-apply). Inventory is checked first; equipment second.
 func resolveModHost(c *Context, token string) (host *entities.ItemInstance, worn bool, ok bool) {
+	return resolveModHostPreferring(c, token, nil)
+}
+
+// resolveModHostPreferring resolves a modify/unmodify host, letting the caller
+// bias the choice among same-keyword candidates. `prefer` (optional) marks the
+// IDEAL host — e.g. unmodify passes "has installed mods" so a spare unmodded
+// jacket can't shadow the worn, modded one the player means. Precedence: a
+// preferred modifiable match (carried then worn) → any modifiable match → any
+// match (so naming a genuine non-host still reports "… can't be modified.").
+func resolveModHostPreferring(c *Context, token string, prefer func(*entities.ItemInstance) bool) (host *entities.ItemInstance, worn bool, ok bool) {
 	carried := collectItems(c.Items, c.Actor.Inventory())
 	wornItems := equippedItems(c)
 
-	// Prefer a MODIFIABLE match so a keyword shared with a non-modifiable item
+	// 0. The caller's strong preference among modifiable hosts.
+	if prefer != nil {
+		pref := func(it *entities.ItemInstance) bool { return it.IsModifiable() && prefer(it) }
+		if h := resolveFiltered(carried, token, pref); h != nil {
+			return h, false, true
+		}
+		if h := resolveFiltered(wornItems, token, pref); h != nil {
+			return h, true, true
+		}
+	}
+
+	// 1. Any MODIFIABLE match, so a keyword shared with a non-modifiable item
 	// doesn't shadow the real host — e.g. a loaded clip whose NAME carries "Ares
 	// Predator V" would otherwise win `modify Ares laser` over the gun itself.
-	// Carried modifiable first (mirrors the original inventory-before-equipment
-	// order), then worn modifiable.
+	// Carried first (mirrors the original inventory-before-equipment order).
 	if h := resolveModifiable(carried, token); h != nil {
 		return h, false, true
 	}
@@ -53,8 +73,8 @@ func resolveModHost(c *Context, token string) (host *entities.ItemInstance, worn
 		return h, true, true
 	}
 
-	// Fallback: any carried/worn match, so `modify <non-host>` still resolves and
-	// reports "… can't be modified." rather than "you aren't carrying that."
+	// 2. Fallback: any carried/worn match, so `modify <non-host>` still resolves
+	// and reports "… can't be modified." rather than "you aren't carrying that."
 	if h := resolveItem(carried, token); h != nil {
 		return h, false, true
 	}
@@ -82,13 +102,20 @@ func equippedItems(c *Context) []*entities.ItemInstance {
 // resolveModifiable keyword-matches token against only the MODIFIABLE items in
 // the set (capacity or mount hosts); nil when none match.
 func resolveModifiable(items []*entities.ItemInstance, token string) *entities.ItemInstance {
-	hosts := make([]*entities.ItemInstance, 0, len(items))
+	return resolveFiltered(items, token, (*entities.ItemInstance).IsModifiable)
+}
+
+// resolveFiltered keyword-matches token against only the items in the set that
+// satisfy keep; nil when none match. Filtering before the keyword resolve lets a
+// preferred candidate win over a same-keyword item that doesn't qualify.
+func resolveFiltered(items []*entities.ItemInstance, token string, keep func(*entities.ItemInstance) bool) *entities.ItemInstance {
+	kept := make([]*entities.ItemInstance, 0, len(items))
 	for _, it := range items {
-		if it.IsModifiable() {
-			hosts = append(hosts, it)
+		if keep(it) {
+			kept = append(kept, it)
 		}
 	}
-	return resolveItem(hosts, token)
+	return resolveItem(kept, token)
 }
 
 // resolveItem keyword-resolves token against an item set; nil when no match.
@@ -195,7 +222,12 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) < 2 {
 		return c.Actor.Write(ctx, "Remove which modification from what? (unmodify <armor> <modification>)")
 	}
-	host, worn, ok := resolveModHost(c, c.Args[0])
+	// Prefer a matching host that actually HAS mods installed, so a spare unmodded
+	// item of the same keyword (a second jacket) can't shadow the modded one the
+	// player means to strip.
+	host, worn, ok := resolveModHostPreferring(c, c.Args[0], func(it *entities.ItemInstance) bool {
+		return len(it.InstalledMods()) > 0
+	})
 	if !ok {
 		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying or wearing %q.", c.Args[0]))
 	}

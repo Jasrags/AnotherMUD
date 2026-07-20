@@ -66,6 +66,35 @@ func TestModify_PrefersModifiableOverCollidingKeyword(t *testing.T) {
 	}
 }
 
+// `unmodify` must find the host that ACTUALLY has the mod, not a same-keyword
+// spare that shadows it. Regression for the reported "An armored jacket has no
+// modifications to remove." when a modded jacket was worn and an unmodded one
+// carried. Two carried jackets here (the fixture actor has no worn slot in
+// scope): the modded one — spawned second — would lose a naive first-match, but
+// the has-mods preference picks it.
+func TestUnmodify_PrefersHostThatHasTheMod(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+
+	// An unmodded jacket FIRST (would win a naive first-match), then a modded one.
+	f.spawnInInventory(t, modVestTpl(), a)
+	modded := f.spawnInInventory(t, modVestTpl(), a)
+	weave := f.spawnInInventory(t, modWeaveTpl(), a)
+	if err := modded.InstallMod(weave); err != nil {
+		t.Fatalf("install weave: %v", err)
+	}
+
+	dispatch(t, r, modEnvWithSpawn(f), a, "unmodify vest weave")
+
+	if out := a.lastLine(); strings.Contains(out, "no modifications") {
+		t.Errorf("unmodify resolved the unmodded spare, not the modded host: %q", out)
+	}
+	if mods := modded.InstalledMods(); len(mods) != 0 {
+		t.Errorf("the weave was not removed from the modded host: %v", mods)
+	}
+}
+
 // The info form surfaces WHAT an installed mod gives (item-modification §8), so a
 // player who slots a ballistic weave sees the +2 piercing soak — not just the
 // mod's name, and not a base armor number that (correctly) didn't move.
