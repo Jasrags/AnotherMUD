@@ -3534,6 +3534,15 @@ func run() error {
 			if !ok {
 				return false
 			}
+			// Once-only death: Deplete drives HP to 0 and reports whether the mob
+			// was alive on entry. Only the observer of wasAlive=true emits
+			// VitalDepleted (pool.Deplete's once-only guarantee) — so a `finish` on
+			// this connection goroutine racing the tick's own killing blow on the
+			// same 1-HP mob can't run the death pipeline twice (double XP / faction
+			// shift / security-heat / mob.killed). Mirrors massiveDamageKill.
+			if wasAlive := m.Vitals().Deplete(); !wasAlive {
+				return false
+			}
 			combatSink.OnVitalDepleted(ctx, combat.VitalDepleted{
 				VictimID:   target,
 				VictimName: m.Name(),

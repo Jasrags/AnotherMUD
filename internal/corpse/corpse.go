@@ -62,13 +62,6 @@ const (
 // guard").
 const DefaultNameTemplate = "the corpse of %s"
 
-// TagLooted marks a mob that was robbed while helpless (the non-lethal
-// rob-the-downed path, subdual-damage): the looter already took its carried
-// items and rolled its coins, so on death its corpse drops no coins — and with
-// its contents already emptied, it produces no corpse at all. Set by the rob
-// verb, read by CreateOnDeath.
-const TagLooted = "looted"
-
 // Service creates corpses on mob death. Wire one at the composition
 // root and subscribe OnMobKilled to the mob.killed event.
 type Service struct {
@@ -155,12 +148,12 @@ func (s *Service) CreateOnDeath(ctx context.Context, e eventbus.MobKilled) {
 	}
 
 	itemIDs := s.contents.In(e.MobID)
-	coins := s.rollCoins(e.TemplateID)
-	// A mob robbed while helpless already had its coins taken — don't let its
-	// corpse roll a fresh purse (its items are likewise already gone). With both
-	// empty, the short-circuit below then produces no corpse at all.
-	if s.mobLooted(e.MobID) {
-		coins = 0
+	// A mob robbed while helpless already had its coins taken — skip the coin
+	// roll entirely (its items are likewise already gone). With both empty, the
+	// short-circuit below then produces no corpse at all.
+	coins := 0
+	if !s.mobLooted(e.MobID) {
+		coins = s.rollCoins(e.TemplateID)
 	}
 
 	// §2.1: a mob with neither items nor a coin drop produces no corpse.
@@ -280,7 +273,7 @@ func (s *Service) mobLooted(mobID entities.EntityID) bool {
 		return false
 	}
 	m, ok := e.(*entities.MobInstance)
-	return ok && m.HasTag(TagLooted)
+	return ok && m.IsLooted()
 }
 
 // corpseKeywords derives lookup keywords from the mob's display name:

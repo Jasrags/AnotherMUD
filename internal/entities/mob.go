@@ -59,6 +59,11 @@ type MobInstance struct {
 	// the lock; out of scope here.
 	propsMu    sync.RWMutex
 	properties map[string]any
+	// looted marks the mob as robbed-while-helpless (the non-lethal rob verb).
+	// propsMu-guarded so the connection-goroutine rob claim is safe against the
+	// tick-side corpse reader — see ClaimLooted / IsLooted. Kept off the tags
+	// slice deliberately (tags have no lock; this is a session-side mutator).
+	looted bool
 
 	// vitals carries mutable HP state for the combat loop (M7.1). The
 	// pointer is established at spawn time from the template's
@@ -616,6 +621,29 @@ func (m *MobInstance) AddTag(tag string) bool {
 	}
 	m.tags = append(m.tags, tag)
 	return true
+}
+
+// ClaimLooted atomically marks the mob robbed-while-helpless and reports
+// whether THIS call won the claim (false = already looted). It is the
+// single-claim gate for the `rob` verb: two robbers racing the same downed mob
+// both call this, exactly one gets true, so only one transfers the loot — the
+// coin-dupe guard. propsMu-guarded, safe from the connection goroutine.
+func (m *MobInstance) ClaimLooted() bool {
+	m.propsMu.Lock()
+	defer m.propsMu.Unlock()
+	if m.looted {
+		return false
+	}
+	m.looted = true
+	return true
+}
+
+// IsLooted reports whether the mob was robbed while helpless (propsMu-guarded,
+// safe from the tick's corpse-creation reader).
+func (m *MobInstance) IsLooted() bool {
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
+	return m.looted
 }
 
 // RemoveTag drops a gameplay tag if present (admin-verbs §4 `set tag`).

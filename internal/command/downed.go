@@ -7,7 +7,6 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/condition"
-	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 )
@@ -84,7 +83,12 @@ func RobHandler(ctx context.Context, c *Context) error {
 	}
 	name := m.Name()
 	room := c.Actor.Room()
-	if m.HasTag(corpse.TagLooted) {
+	// Atomic single-claim BEFORE any transfer: the first robber to reach a downed
+	// mob wins, a loser racing the same target (another connection goroutine)
+	// sees it already looted and takes nothing. This is the coin-dupe + re-rob
+	// guard — claiming up front means two goroutines can't both roll coins.
+	// Also suppresses the mob's corpse coin drop later (corpse reads IsLooted).
+	if !m.ClaimLooted() {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has already been picked clean.", name))
 	}
 
@@ -109,9 +113,6 @@ func RobHandler(ctx context.Context, c *Context) error {
 			}
 		}
 	}
-	// Mark robbed even on an empty haul: the coin roll was spent, and this stops
-	// a re-rob and suppresses a corpse coin drop later (corpse.TagLooted).
-	m.AddTag(corpse.TagLooted)
 
 	if len(taken) == 0 && credited == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has nothing worth taking.", name))

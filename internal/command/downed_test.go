@@ -8,7 +8,6 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/condition"
-	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -61,8 +60,8 @@ func TestRob_HelplessMobTransfersItemsLeavesAlive(t *testing.T) {
 	if !containsID(a.Inventory(), it.ID()) {
 		t.Errorf("robbed item not in looter inventory: %v", a.Inventory())
 	}
-	if !m.HasTag(corpse.TagLooted) {
-		t.Error("robbed mob not tagged looted (re-rob / corpse-coin guard)")
+	if !m.IsLooted() {
+		t.Error("robbed mob not marked looted (re-rob / corpse-coin guard)")
 	}
 	// Non-lethal: the mob is still in the room (not killed).
 	if !containsID(f.place.InRoom(f.room.ID), m.ID()) {
@@ -88,7 +87,7 @@ func TestRob_ConsciousMobRefused(t *testing.T) {
 func TestRob_AlreadyLootedRefused(t *testing.T) {
 	f := newLootFixture(t)
 	m, em := downedMob(t, f, true)
-	m.AddTag(corpse.TagLooted)
+	m.ClaimLooted()
 	env := f.env()
 	env.Effects = em
 	a := newCombatActor("Runner", "p-1", f.room)

@@ -314,7 +314,7 @@ func TestCreateOnDeath_LootedMobDropsNoCoinsOrCorpse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SpawnMob: %v", err)
 	}
-	m.AddTag(TagLooted) // robbed while down
+	m.ClaimLooted() // robbed while down
 	ev := eventbus.MobKilled{MobID: m.ID(), MobName: "a village guard", TemplateID: "core:village-guard", KillerID: "player:bob", RoomID: testRoom}
 	h.svc.CreateOnDeath(context.Background(), ev)
 
