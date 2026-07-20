@@ -128,6 +128,27 @@ func resolveItem(items []*entities.ItemInstance, token string) *entities.ItemIns
 	return nil
 }
 
+// actorPersister is the optional immediate-save capability. A durable
+// equipment action that CONSUMES an item — installing a mod destroys the mod
+// entity and folds it into the host, removing a mod frees a mount/capacity —
+// flushes the actor to disk right away, so a missed autosave or a non-clean
+// shutdown before the next save can't silently roll the change back (and lose
+// the consumed mod). The connActor satisfies it; test fakes that don't simply
+// skip the flush.
+type actorPersister interface {
+	Persist(ctx context.Context) error
+}
+
+// persistActor flushes the actor to disk now if it supports it (best-effort:
+// a failed save is logged by the persist path, and autosave remains the
+// backstop). Called after a durable modify/unmodify so the change is durable
+// the moment it happens, not up to an autosave interval later.
+func persistActor(ctx context.Context, c *Context) {
+	if p, ok := c.Actor.(actorPersister); ok {
+		_ = p.Persist(ctx)
+	}
+}
+
 // upFirst capitalizes the first rune so an item name can open a sentence.
 func upFirst(s string) string {
 	if s == "" {
@@ -207,6 +228,9 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	if worn {
 		c.Actor.RefreshEquipped(host.ID(), EquipModifiers(host, c.Grades, false))
 	}
+	// Durable action — the mod entity was just consumed into the host. Flush now
+	// so a restart before the next autosave can't lose it (persistence safety).
+	persistActor(ctx, c)
 	if mount != "" {
 		return c.Actor.Write(ctx, fmt.Sprintf("You attach %s to %s's %s mount.", mod.Name(), host.Name(), mount))
 	}
@@ -246,6 +270,9 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 	if worn {
 		c.Actor.RefreshEquipped(host.ID(), EquipModifiers(host, c.Grades, false))
 	}
+	// Durable action — flush now so the removal survives a restart before the
+	// next autosave (persistence safety).
+	persistActor(ctx, c)
 	// Re-spawn the modification as a carried item (§5 — recovered by default).
 	note := capacityNote(host)
 	if c.Spawn == nil {
