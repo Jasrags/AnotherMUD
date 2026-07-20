@@ -24,30 +24,32 @@ import (
 // service lock (registry.Lookup uses the registry's own lock), so there
 // is no re-entrancy.
 type questNotifier struct {
-	mgr       *Manager
-	registry  *quest.Registry
-	giverName func(templateID string) string // mob template id → display name
-	itemName  func(templateID string) string // item template id → display name
-	money     economy.CurrencyLabel          // currency-label seam: reward "gold"/"¥"
-	logger    *slog.Logger
+	mgr         *Manager
+	registry    *quest.Registry
+	giverName   func(templateID string) string // mob template id → display name
+	itemName    func(templateID string) string // item template id → display name
+	factionName func(id string) string         // faction id → display name
+	money       economy.CurrencyLabel          // currency-label seam: reward "gold"/"¥"
+	logger      *slog.Logger
 }
 
-// NewQuestNotifier builds the runtime quest sink. giverName / itemName
-// resolve template ids to display names for turn-in prompts and reward
-// lines; either may be nil (falls back to the raw / short id). money is the
+// NewQuestNotifier builds the runtime quest sink. giverName / itemName /
+// factionName resolve ids to display names for turn-in prompts and reward
+// lines; any may be nil (falls back to the raw / prettified id). money is the
 // pack's currency label so the reward banner reads "25¥" / "25 gold".
 func NewQuestNotifier(
 	mgr *Manager,
 	registry *quest.Registry,
 	giverName func(string) string,
 	itemName func(string) string,
+	factionName func(string) string,
 	money economy.CurrencyLabel,
 	logger *slog.Logger,
 ) quest.EventSink {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &questNotifier{mgr: mgr, registry: registry, giverName: giverName, itemName: itemName, money: money, logger: logger}
+	return &questNotifier{mgr: mgr, registry: registry, giverName: giverName, itemName: itemName, factionName: factionName, money: money, logger: logger}
 }
 
 // write delivers a line to an online player; an offline recipient is a
@@ -149,36 +151,108 @@ func (n *questNotifier) Abandoned(e quest.AbandonedEvent) {
 		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID))
 }
 
-// completionBanner renders the player-visible "quest complete" block with
-// the rewards granted (from the event payload).
+// completionBannerWidth is the fixed rule width for the completion block. The
+// rules are plain `=` runs (no vertical frame), so a multibyte reward value like
+// "500¥" sits in an indented content line and never drifts a border
+// (render.Panel's width count is byte-based — see render-panel-width-multibyte).
+const completionBannerWidth = 60
+
+// completionBanner renders the player-visible "quest complete" block: a titled
+// rule, the quest name + classification, and the itemized rewards granted (from
+// the event payload). Framed with fixed-width rules + a leading blank line so a
+// visit-completed quest's banner separates from the room/movement text that
+// would otherwise bury it (the "my quest vanished" trap).
 func (n *questNotifier) completionBanner(e quest.CompletedEvent) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "<title>Quest complete: %s</title>", n.questName(e.QuestID))
+	b.WriteString("\r\n<good>" + titledRule(completionBannerWidth, "QUEST COMPLETE") + "</good>\r\n")
+	if cls := n.classification(e.QuestID); cls != "" {
+		fmt.Fprintf(&b, "  <title>%s</title> <subtle>(%s)</subtle>\r\n", n.questName(e.QuestID), cls)
+	} else {
+		fmt.Fprintf(&b, "  <title>%s</title>\r\n", n.questName(e.QuestID))
+	}
+	if lines := n.rewardLines(e); len(lines) > 0 {
+		b.WriteString("  <good>Rewards</good>\r\n")
+		for _, ln := range lines {
+			b.WriteString("    " + ln + "\r\n")
+		}
+	}
+	b.WriteString("<good>" + strings.Repeat("=", completionBannerWidth) + "</good>\r\n")
+	return b.String()
+}
 
-	var rewards []string
+// rewardLines itemizes a completion's rewards, one display line each. XP/gold are
+// always positive grants; faction standing + renown carry their sign (a quest
+// may cost standing with a rival). Faction ids resolve to display names.
+func (n *questNotifier) rewardLines(e quest.CompletedEvent) []string {
+	var lines []string
 	if e.XP > 0 {
-		rewards = append(rewards, fmt.Sprintf("%d experience", e.XP))
+		lines = append(lines, fmt.Sprintf("+ %d experience", e.XP))
 	}
 	if e.Gold > 0 {
 		// Currency-label seam: "25¥" in Shadowrun, "25 gold" in the fantasy default.
-		rewards = append(rewards, n.money.Format(e.Gold))
+		lines = append(lines, "+ "+n.money.Format(e.Gold))
+	}
+	for _, fr := range e.Faction {
+		if fr.Delta == 0 {
+			continue // a 0-delta reward (author slip) shows no line — mirror the renown guard
+		}
+		lines = append(lines, fmt.Sprintf("%s standing with %s", signedAmount(fr.Delta), n.factionLabel(fr.Faction)))
+	}
+	if e.Reputation != 0 {
+		lines = append(lines, signedAmount(e.Reputation)+" renown")
 	}
 	for _, it := range e.Items {
-		rewards = append(rewards, n.itemLabel(it))
+		lines = append(lines, "+ "+n.itemLabel(it))
 	}
 	for _, ab := range e.Abilities {
-		rewards = append(rewards, ab)
+		lines = append(lines, "+ "+ab)
 	}
 	if e.ClassUnlock != "" {
-		rewards = append(rewards, "class: "+e.ClassUnlock)
+		lines = append(lines, "+ class: "+e.ClassUnlock)
 	}
 	if e.RaceUnlock != "" {
-		rewards = append(rewards, "race: "+e.RaceUnlock)
+		lines = append(lines, "+ race: "+e.RaceUnlock)
 	}
-	if len(rewards) > 0 {
-		fmt.Fprintf(&b, "\r\n<good>Rewards:</good> %s", strings.Join(rewards, ", "))
+	return lines
+}
+
+// classification returns the quest's classification (main/side/daily), or "".
+func (n *questNotifier) classification(questID string) string {
+	if def, ok := n.registry.Lookup(questID); ok {
+		return def.Classification
 	}
-	return b.String()
+	return ""
+}
+
+// factionLabel resolves a faction id to its display name, falling back to the
+// prettified id ("the-streets" → "The Streets") when no resolver is wired.
+func (n *questNotifier) factionLabel(id string) string {
+	if n.factionName != nil {
+		if nm := n.factionName(id); nm != "" {
+			return nm
+		}
+	}
+	return prettifyID(id)
+}
+
+// signedAmount renders a signed reward magnitude with a spaced sign
+// ("+ 50" / "- 50"), matching the "+ " prefix the always-positive rewards use.
+func signedAmount(n int) string {
+	if n < 0 {
+		return fmt.Sprintf("- %d", -n)
+	}
+	return fmt.Sprintf("+ %d", n)
+}
+
+// titledRule builds a fixed-width `=` rule with a centered label, e.g.
+// "=========== QUEST COMPLETE ===========". ASCII only, so len == visible width.
+func titledRule(width int, label string) string {
+	label = " " + label + " "
+	if len(label) >= width {
+		return strings.Repeat("=", width)
+	}
+	left := (width - len(label)) / 2
+	return strings.Repeat("=", left) + label + strings.Repeat("=", width-left-len(label))
 }
 
 // itemLabel resolves an item template id to a display name, falling back

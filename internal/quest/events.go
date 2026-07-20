@@ -38,6 +38,8 @@ type CompletedEvent struct {
 	Gold        int
 	Items       []string
 	Abilities   []string
+	Faction     []FactionReward // standing shifts granted (faction.md §5.1)
+	Reputation  int             // renown shift granted (reputation.md §5.3)
 	ClassUnlock string
 	RaceUnlock  string
 }

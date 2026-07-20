@@ -115,6 +115,26 @@ func TestQuestsJournal(t *testing.T) {
 	}
 }
 
+// A completed quest shows under "Recently completed" — so a just-finished quest
+// doesn't leave the journal reading "no active quests" and feel like it vanished.
+func TestQuestsJournal_ShowsRecentlyCompleted(t *testing.T) {
+	svc := questService(t)
+	a := newNamedTestActor("Hero", "p1", nil)
+	_ = command.AcceptHandler(context.Background(),
+		&command.Context{Actor: a, Quests: svc, Args: []string{"patrol"}})
+	// Complete the visit objective → auto-grant (TurnIn defaults false) → completed.
+	svc.AdvanceMatching("p1", "visit", func(o quest.Objective) bool { return o.Target == "core:gate" })
+
+	_ = command.QuestsHandler(context.Background(), &command.Context{Actor: a, Quests: svc})
+	out := a.lastLine()
+	// 0 active now, but the journal must still render with the completed footer.
+	for _, want := range []string{"Quest Journal", "no active quests", "Recently completed", "[x] Gate Patrol"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("journal missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestAbandonHandler(t *testing.T) {
 	svc := questService(t)
 	a := newNamedTestActor("Hero", "p1", nil)

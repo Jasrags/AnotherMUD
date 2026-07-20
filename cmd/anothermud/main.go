@@ -1107,7 +1107,15 @@ func run() error {
 	// it up on quest end). The spawner drives the same boot spawn pipeline the
 	// admin `spawn` verb uses, via the questSpawnPrimitive adapter over the
 	// already-built bootSpawner.
-	questNotifier := session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, currencyLabel, logging.From(ctx))
+	questFactionName := func(id string) string {
+		if registries.Factions != nil {
+			if def, ok := registries.Factions.Get(id); ok && def.Name != "" {
+				return def.Name
+			}
+		}
+		return "" // notifier falls back to the prettified id
+	}
+	questNotifier := session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, questFactionName, currencyLabel, logging.From(ctx))
 	questSpawnPrim := &questSpawnPrimitive{
 		boot: spawner,
 		// Clear a despawned quest item from its owner's live session bag on

@@ -41,7 +41,13 @@ func newNotifierRig(t *testing.T) (quest.EventSink, *fakeConn) {
 		}
 		return ""
 	}
-	return NewQuestNotifier(mgr, reg, giver, itemN, economy.DefaultCurrency, nil), fc
+	factionN := func(id string) string {
+		if id == "the-streets" {
+			return "The Streets"
+		}
+		return ""
+	}
+	return NewQuestNotifier(mgr, reg, giver, itemN, factionN, economy.DefaultCurrency, nil), fc
 }
 
 func TestQuestNotifier_ObjectiveProgress(t *testing.T) {
@@ -69,13 +75,50 @@ func TestQuestNotifier_ReadyToTurnIn(t *testing.T) {
 func TestQuestNotifier_CompletionBannerListsRewards(t *testing.T) {
 	n, fc := newNotifierRig(t)
 	n.Completed(quest.CompletedEvent{
-		PlayerID: "p1", QuestID: "q", XP: 100, Gold: 25, Items: []string{"core:healing-draught"},
+		PlayerID: "p1", QuestID: "q", XP: 100, Gold: 25,
+		Items:      []string{"core:healing-draught"},
+		Faction:    []quest.FactionReward{{Faction: "the-streets", Delta: 50}},
+		Reputation: 10,
 	})
 	out := strings.Join(fc.writes(), "\n")
-	for _, want := range []string{"Quest complete: Gate Patrol", "100 experience", "25 gold", "a healing draught"} {
+	for _, want := range []string{
+		"QUEST COMPLETE",            // the prominent header rule
+		"Gate Patrol",               // quest name
+		"100 experience", "25 gold", // xp + currency-labeled gold
+		"a healing draught",              // item reward
+		"+ 50 standing with The Streets", // faction reward (was silently dropped before)
+		"+ 10 renown",                    // reputation reward
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("completion banner missing %q:\n%s", want, out)
 		}
+	}
+	// The old "Quest complete: <name>" one-liner is gone (name is now its own line).
+	if strings.Contains(out, "Quest complete: Gate Patrol") {
+		t.Errorf("banner still uses the old one-liner form:\n%s", out)
+	}
+}
+
+// A quest that COSTS standing with a rival renders a signed "- N" line, and a
+// zero-delta faction reward (author slip) shows nothing.
+func TestQuestNotifier_CompletionBannerSignedAndZeroFaction(t *testing.T) {
+	n, fc := newNotifierRig(t)
+	n.Completed(quest.CompletedEvent{
+		PlayerID: "p1", QuestID: "q", XP: 10,
+		Faction: []quest.FactionReward{
+			{Faction: "the-streets", Delta: -25}, // a cost
+			{Faction: "the-streets", Delta: 0},   // slip → omitted
+		},
+		Reputation: -5,
+	})
+	out := strings.Join(fc.writes(), "\n")
+	for _, want := range []string{"- 25 standing with The Streets", "- 5 renown"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("banner missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "+ 0 standing") || strings.Contains(out, "0 standing with") {
+		t.Errorf("zero-delta faction reward rendered a line:\n%s", out)
 	}
 }
 

@@ -400,6 +400,7 @@ func (s *Service) completeLocked(playerID string, st *State, questID string) {
 		PlayerID: playerID, QuestID: questID,
 		XP: reward.XP, Gold: reward.Gold,
 		Items: reward.Items, Abilities: reward.Abilities,
+		Faction: reward.Faction, Reputation: reward.Reputation,
 		ClassUnlock: reward.ClassUnlock, RaceUnlock: reward.RaceUnlock,
 	})
 }

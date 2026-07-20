@@ -91,23 +91,70 @@ func QuestsHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "Quests are not available right now.")
 	}
 	snap := c.Quests.Snapshot(c.Actor.PlayerID())
-	if snap == nil || len(snap.Active) == 0 {
+	// Only a truly empty journal (nothing active AND nothing ever completed)
+	// gets the bare line — otherwise a just-completed quest would leave the
+	// journal reading "no active quests" and feel like it vanished.
+	if snap == nil || (len(snap.Active) == 0 && len(snap.Completed) == 0) {
 		return c.Actor.Write(ctx, "<subtle>You have no active quests.</subtle>")
 	}
 
 	panel := render.Panel{Width: 64, Sections: []render.Section{{
 		Rows: []render.Row{render.TitleRow("Quest Journal", fmt.Sprintf("%d active", len(snap.Active)))},
 	}}}
+	if len(snap.Active) == 0 {
+		panel.Sections = append(panel.Sections, render.Section{
+			SeparatorAbove: render.RuleMinor,
+			Rows:           []render.Row{render.TextRow("<subtle>You have no active quests.</subtle>", render.AlignLeft, true)},
+		})
+	}
 	for i := range snap.Active {
 		active := &snap.Active[i]
 		def, _ := c.Quests.Definition(active.QuestID)
 		panel.Sections = append(panel.Sections, questSection(active, def))
+	}
+	if len(snap.Completed) > 0 {
+		panel.Sections = append(panel.Sections, completedSection(c, snap.Completed))
 	}
 	out, err := panel.Render()
 	if err != nil {
 		return c.Actor.Write(ctx, "Your quest journal could not be rendered.")
 	}
 	return c.Actor.Write(ctx, out)
+}
+
+// maxRecentCompleted caps the "Recently completed" list so a veteran's journal
+// doesn't get swamped by their whole quest history.
+const maxRecentCompleted = 5
+
+// completedSection renders the "Recently completed" journal footer: the last
+// maxRecentCompleted completed quests, most-recent first. Marker is `[x]` to
+// match the objective checkbox style (and stay ASCII — the panel width count is
+// byte-based).
+func completedSection(c *Context, completed []string) render.Section {
+	rows := []render.Row{render.TitleRow("Recently completed", "")}
+	for _, id := range recentCompleted(completed, maxRecentCompleted) {
+		def, _ := c.Quests.Definition(id)
+		rows = append(rows, render.TextRow(
+			fmt.Sprintf("  [x] %s", questName(def, id)), render.AlignLeft, true))
+	}
+	return render.Section{SeparatorAbove: render.RuleMinor, Rows: rows}
+}
+
+// recentCompleted returns up to max completed quest ids, most-recent-first.
+// State.Completed is append-only (oldest→newest), so this takes the last max
+// and reverses. A pure function so the truncation + ordering boundaries are
+// unit-testable without a full journal render.
+func recentCompleted(completed []string, max int) []string {
+	start := 0
+	if len(completed) > max {
+		start = len(completed) - max
+	}
+	tail := completed[start:]
+	out := make([]string, 0, len(tail))
+	for i := len(tail) - 1; i >= 0; i-- {
+		out = append(out, tail[i])
+	}
+	return out
 }
 
 // questSection builds the journal section for one active quest.
