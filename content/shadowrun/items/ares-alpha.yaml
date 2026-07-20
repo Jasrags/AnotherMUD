@@ -22,6 +22,9 @@ ranged_style: firearms
 range_increment: 16
 fire_modes: [single, burst, auto]
 rc: 2
+# Weapon accessory mounts (weapon-accessories.md §2): the frame's rails +
+# muzzle give this weapon its accessory geometry; each mount holds one.
+mounts: [barrel, top, under-barrel, stock, internal]
 properties:
   weight: 5
   value: 2650

@@ -1,0 +1,19 @@
+id: smartgun-system-internal
+name: an internal smartgun system
+type: item
+description: |
+  A smartgun package machined into the weapon's frame — sensor, barrel collar, and
+  wireless link, all internal. No rail clutter, nothing to knock loose. Only pays
+  off if the shooter's running a smartlink to read the feed.
+tags: [weapon-accessory]
+keywords: [internal smartgun, smartgun internal, internal smart, smart]
+# Weapon ACCESSORY (weapon-accessories.md §3): SR5 Smartgun System, Internal
+# (Core) — occupies the INTERNAL mount (longarms only), so it frees the rails for
+# optics/grips. Like the external unit it `grants: [smartgun]`; the to-hit bonus
+# comes from the smartlink PAIRING (item-modification §6), not the accessory alone.
+mod_host: weapon
+accessory_mounts: [internal]
+grants: [smartgun]
+properties:
+  weight: 0
+  value: 2500

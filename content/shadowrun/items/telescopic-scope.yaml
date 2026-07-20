@@ -1,0 +1,21 @@
+id: telescopic-scope
+name: a telescopic scope
+type: item
+description: |
+  A magnified optic with rangefinder reticle and a smart-glass coating, clamped to
+  the top rail. Turns a distant silhouette into a clean shot — if you've the barrel
+  and the stillness to use it. The marksman's choice over a snap-shooting red-dot.
+tags: [weapon-accessory]
+keywords: [scope, telescopic, telescopic scope, optic]
+# Weapon accessory: TOP mount (excludes a reflex sight). A premium optic — the
+# steadying to-hit bonus is live now; its real edge is at RANGE, which lights up
+# when accessory range aggregation lands (Tier-2 seam). Recorded here, not inert:
+# the to-hit modifier already applies.
+mod_host: weapon
+accessory_mounts: [top]
+modifiers:
+  - stat: hit_mod
+    value: 1
+properties:
+  weight: 1
+  value: 400

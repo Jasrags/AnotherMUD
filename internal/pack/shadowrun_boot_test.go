@@ -421,6 +421,77 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 			clip.Magazine, clip.HolderFits, clip.AmmoKind)
 	}
 
+	// Weapon-accessory mounts (weapon-accessories.md §2): firearms declare their
+	// SR5-shaped mount geometry so accessories can attach. A longarm exposes the
+	// internal mount; the hold-out is minimal; a mount-less firearm would silently
+	// take no accessories, so pin the geometry per class.
+	hasMount := func(id, want string) bool {
+		w, err := regs.Items.Get(item.TemplateID("shadowrun:" + id))
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		for _, m := range w.Mounts {
+			if m == want {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasMount("ares-alpha", "internal") {
+		t.Errorf("ares-alpha should expose an internal mount (assault rifle geometry)")
+	}
+	if !hasMount("smg", "stock") {
+		t.Errorf("smg should expose a stock mount")
+	}
+	if !hasMount("ares-light-fire-70", "top") {
+		t.Errorf("ares-light-fire-70 should expose a top mount")
+	}
+	if hasMount("streetline-special", "under-barrel") {
+		t.Errorf("streetline-special (hold-out) should NOT expose an under-barrel mount")
+	}
+
+	// The Tier-1 accessories load with the right mount + effect. Reflex/scope/
+	// foregrip ride the live hit_mod seam; the internal smartgun grants the
+	// smartgun capability (paired with a smartlink downstream).
+	accHitMod := func(id, wantMount string) {
+		a, err := regs.Items.Get(item.TemplateID("shadowrun:" + id))
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if len(a.AccessoryMounts) != 1 || a.AccessoryMounts[0] != wantMount {
+			t.Errorf("%s accessory_mounts = %v, want [%s]", id, a.AccessoryMounts, wantMount)
+		}
+		got := 0
+		for _, m := range a.Modifiers {
+			if m.Stat == "hit_mod" {
+				got = m.Value
+			}
+		}
+		if got != 1 {
+			t.Errorf("%s hit_mod = %d, want 1", id, got)
+		}
+	}
+	accHitMod("reflex-sight", "top")
+	accHitMod("telescopic-scope", "top")
+	accHitMod("foregrip", "under-barrel")
+
+	smart, err := regs.Items.Get("shadowrun:smartgun-system-internal")
+	if err != nil {
+		t.Fatalf("smartgun-system-internal: %v", err)
+	}
+	if len(smart.AccessoryMounts) != 1 || smart.AccessoryMounts[0] != "internal" {
+		t.Errorf("internal smartgun accessory_mounts = %v, want [internal]", smart.AccessoryMounts)
+	}
+	grantsSmartgun := false
+	for _, g := range smart.Grants {
+		if g == "smartgun" {
+			grantsSmartgun = true
+		}
+	}
+	if !grantsSmartgun {
+		t.Errorf("internal smartgun grants = %v, want to include smartgun", smart.Grants)
+	}
+
 	// Armour carries the soak rating the channel map reads through `armor`.
 	jacket, err := regs.Items.Get("shadowrun:armored-jacket")
 	if err != nil {

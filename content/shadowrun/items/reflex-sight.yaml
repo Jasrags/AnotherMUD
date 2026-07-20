@@ -1,0 +1,20 @@
+id: reflex-sight
+name: a reflex sight
+type: item
+description: |
+  A rugged red-dot optic that snaps onto a top rail — both eyes open, put the dot
+  on the target, squeeze. Cheap, fast, and forgiving of a hurried shot. The default
+  glass for anyone who can't afford chrome eyes.
+tags: [weapon-accessory]
+keywords: [reflex, sight, red-dot, dot, reflex sight]
+# Weapon accessory (weapon-accessories.md §3): occupies the TOP mount. Steadies a
+# shot for a small to-hit bonus via the standard equip modifier path
+# (item-modification §6). Competes with the telescopic scope for the top rail.
+mod_host: weapon
+accessory_mounts: [top]
+modifiers:
+  - stat: hit_mod
+    value: 1
+properties:
+  weight: 0
+  value: 150

@@ -17,6 +17,9 @@ ranged_class: projectile
 ammo_kind: bullet
 ranged_style: firearms
 range_increment: 4
+# Weapon accessory mounts (weapon-accessories.md §2): the frame's rails +
+# muzzle give this weapon its accessory geometry; each mount holds one.
+mounts: [barrel, top]
 properties:
   weight: 1
   value: 120

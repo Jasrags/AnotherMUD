@@ -116,8 +116,12 @@ properties:
       - shadowrun:insulation
       - shadowrun:nonconductivity
       - shadowrun:chemical-seal
-      # Weapon accessory (weapon-accessories.md) — `modify <weapon> laser`.
+      # Weapon accessories (weapon-accessories.md) — `modify <weapon> <accessory>`.
       - shadowrun:laser-sight
+      - shadowrun:reflex-sight
+      - shadowrun:telescopic-scope
+      - shadowrun:foregrip
+      - shadowrun:smartgun-system-internal
       # Cyberware-cluster enhancement (item-modification.md) — `modify cybereyes
       # vision` slots it into a cybereye's capacity before you install the eyes.
       - shadowrun:cybereye-vision-enhancement

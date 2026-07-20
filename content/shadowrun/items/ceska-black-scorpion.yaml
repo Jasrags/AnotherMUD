@@ -19,6 +19,9 @@ ammo_kind: bullet
 ranged_style: firearms
 range_increment: 6
 fire_modes: [single, burst]
+# Weapon accessory mounts (weapon-accessories.md §2): the frame's rails +
+# muzzle give this weapon its accessory geometry; each mount holds one.
+mounts: [barrel, top, under-barrel, stock]
 properties:
   weight: 2
   value: 270

@@ -46,9 +46,16 @@ properties:
       - shadowrun:caseless-round
       - shadowrun:armor-vest
       - shadowrun:armored-jacket
+      # Weapon accessories — an arms boutique stocks optics, grips, and smartgun kit.
+      - shadowrun:reflex-sight
+      - shadowrun:telescopic-scope
+      - shadowrun:foregrip
+      - shadowrun:laser-sight
+      - shadowrun:smartgun-system
+      - shadowrun:smartgun-system-internal
       # Field medical gear — an arms boutique stocks kits, refills, and patches.
       - shadowrun:pocket-medkit
       - shadowrun:medkit
       - shadowrun:medkit-supplies
       - shadowrun:stimpatch
-    buys: [weapon, ammo, armor]
+    buys: [weapon, ammo, armor, weapon-accessory]
