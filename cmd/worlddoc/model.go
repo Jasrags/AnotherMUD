@@ -54,6 +54,16 @@ type roomYAML struct {
 	Properties  map[string]any      `yaml:"properties"`
 	Doors       map[string]doorYAML `yaml:"doors"`
 	HiddenExits map[string]any      `yaml:"hidden_exits"`
+	Coord       *coordYAML          `yaml:"coord"`
+}
+
+// coordYAML is an authored area-local coordinate pin (room-coordinates §):
+// the same shape the engine reads (internal/pack CoordFile). Used to place a
+// room the exit-graph BFS can't reach (a transit car with no exits).
+type coordYAML struct {
+	X *int `yaml:"x"`
+	Y *int `yaml:"y"`
+	Z *int `yaml:"z"`
 }
 
 type mobYAML struct {
@@ -476,6 +486,55 @@ func layout(rooms map[string]roomYAML, start string) map[string]pt {
 		// than quietly laying out with no spawn seed.
 		fmt.Fprintf(os.Stderr, "worlddoc: start room %q not found; laying out without a spawn seed\n", start)
 	}
+
+	// Honor `coord:` pins (room-coordinates §) for rooms the BFS couldn't reach —
+	// a transit car with no exits. The engine derives pins per-AREA (area-local
+	// origins) while this layout is global, so a pin can't be applied as an
+	// absolute cell. Instead anchor an unreached pinned room on an already-placed,
+	// pinned room in the SAME area: global = reference.global + (pin - reference.pin),
+	// which reproduces the authored area-local geometry (e.g. the elevator car one
+	// cell east of the concourse) beside the area's placed rooms. Deterministic:
+	// the reference is the lexicographically-smallest placed+pinned room per area.
+	pinOf := func(id string) (pt, bool) {
+		c := rooms[id].Coord
+		if c == nil || c.X == nil || c.Y == nil || c.Z == nil {
+			return pt{}, false
+		}
+		return pt{*c.X, *c.Y, *c.Z}, true
+	}
+	sortedIDs := make([]string, 0, len(rooms))
+	for id := range rooms {
+		sortedIDs = append(sortedIDs, id)
+	}
+	sort.Strings(sortedIDs)
+	type ref struct{ global, pin pt }
+	areaRef := map[string]ref{}
+	for _, id := range sortedIDs {
+		if !visited[id] {
+			continue
+		}
+		if p, ok := pinOf(id); ok {
+			if _, seen := areaRef[rooms[id].Area]; !seen {
+				areaRef[rooms[id].Area] = ref{global: coords[id], pin: p}
+			}
+		}
+	}
+	for _, id := range sortedIDs {
+		if visited[id] {
+			continue
+		}
+		p, ok := pinOf(id)
+		if !ok {
+			continue
+		}
+		r, ok := areaRef[rooms[id].Area]
+		if !ok {
+			continue // no placed+pinned anchor in this area — fall to the stack below
+		}
+		place(id, pt{r.global.x + p.x - r.pin.x, r.global.y + p.y - r.pin.y, r.global.z + p.z - r.pin.z})
+		visited[id] = true
+	}
+
 	ids := make([]string, 0, len(rooms))
 	for id := range rooms {
 		ids = append(ids, id)
