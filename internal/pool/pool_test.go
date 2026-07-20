@@ -126,6 +126,24 @@ func TestRestoreCapsAtMax(t *testing.T) {
 	}
 }
 
+func TestRestoreDeltaReturnsActualRestored(t *testing.T) {
+	// Partial heal below max: delta is the full amount.
+	p := NewAt("hp", 5, 20, Rules{Floor: 0})
+	if restored, cur, max := p.RestoreDelta(9); restored != 9 || cur != 14 || max != 20 {
+		t.Fatalf("RestoreDelta(9) from 5 = (restored %d, cur %d, max %d); want (9, 14, 20)", restored, cur, max)
+	}
+	// Overheal past max: delta is only the HP that fit, not the requested amount.
+	p2 := NewAt("hp", 15, 20, Rules{Floor: 0})
+	if restored, cur, _ := p2.RestoreDelta(100); restored != 5 || cur != 20 {
+		t.Fatalf("RestoreDelta(100) from 15/20 = (restored %d, cur %d); want (5, 20)", restored, cur)
+	}
+	// Already full: no restore, zero delta.
+	p3 := NewAt("hp", 20, 20, Rules{Floor: 0})
+	if restored, _, _ := p3.RestoreDelta(10); restored != 0 {
+		t.Fatalf("RestoreDelta on a full pool = %d; want 0", restored)
+	}
+}
+
 func TestSetMaxClampsCurrentDown(t *testing.T) {
 	p := New("hp", 20, Rules{Floor: 0}) // current 20
 	p.SetMax(12)

@@ -1,0 +1,18 @@
+id: stimpatch
+name: a stimpatch
+type: item
+description: |
+  A slap-patch of fast-acting trauma gel and stimulants in a peel-back wrapper.
+  Press it to a wound and it clots, numbs, and jolts you back to your feet — the
+  cheap self-care of anyone who can't afford a street doc mid-run. One and done.
+tags: [consumable, medical]
+keywords: [stimpatch, patch, stim]
+properties:
+  weight: 0
+  value: 25
+  # M11.5 consumable (economy-survival §6.1). `use stimpatch` restores HP
+  # directly via the `heal` knob — a vitals sibling of sustenance_value,
+  # applied through the EntityHealed primitive. Single-use (no charges), so
+  # it is destroyed on consume. No skill required (unlike the medkit's treat).
+  consume_method: use
+  heal: 8

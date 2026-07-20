@@ -26,6 +26,8 @@ properties:
     # category to sell-backs.
     buys: [cyberware, armor]
     sells:
+      - shadowrun:medkit
+      - shadowrun:stimpatch
       - shadowrun:armored-jacket
       - shadowrun:armor-vest
       - shadowrun:stun-baton

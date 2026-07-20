@@ -2598,6 +2598,43 @@ func run() error {
 		return nil, "", false
 	}
 
+	// healEntity is the general heal primitive (economy-survival §6 heal
+	// knob / the treat/First-Aid action / heal weaves): restore `amount`
+	// HP to the target combatant, clamped to max by Vitals.Heal, and emit
+	// the observable EntityHealed event so the heal is uniformly logged and
+	// notifiable. Returns the HP actually restored (0 when the target is
+	// gone or already full). sourceID == targetID for a self-heal; source
+	// is a short origin label ("stimpatch", "first-aid", the ability id).
+	// GMCP Char.Vitals refresh is tick-driven, so no explicit push here.
+	healEntity := func(ctx context.Context, targetID, sourceID, source string, amount int) int {
+		if amount <= 0 {
+			return 0
+		}
+		target, _, ok := resolveCombatant(targetID)
+		if !ok {
+			return 0
+		}
+		// HealAmount applies + snapshots in one lock, returning the true
+		// delta (not the new current), so a concurrent damage/heal on the
+		// same target can't skew the reported/emitted amount.
+		healed, cur, maxHP := target.Vitals().HealAmount(amount)
+		if healed <= 0 {
+			return 0 // already at full — no event for a no-op heal
+		}
+		sourceName := combatantName(combat.EntityIDOf(combat.CombatantID(sourceID)))
+		bus.Publish(ctx, eventbus.EntityHealed{
+			TargetID:   entities.EntityID(combat.EntityIDOf(combat.CombatantID(targetID))),
+			SourceID:   entities.EntityID(combat.EntityIDOf(combat.CombatantID(sourceID))),
+			TargetName: target.Name(),
+			SourceName: sourceName,
+			Amount:     healed,
+			NewHP:      cur,
+			MaxHP:      maxHP,
+			Source:     source,
+		})
+		return healed
+	}
+
 	// WoT S2 Phase 3 — affinity potency. A channeler weaving a spell whose
 	// Five-Power elements lie outside their gender-derived affinity does so at
 	// reduced magnitude (soft scaling, never a hard gate). Inert outside the
@@ -2730,18 +2767,16 @@ func run() error {
 			if targetID == "" {
 				targetID = e.SourceID // self-heal
 			}
-			target, _, ok := resolveCombatant(targetID)
-			if !ok {
-				return
-			}
 			amount := dice.heal.Roll(combatRNG)
 			amount = max(scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID)), 1)
-			target.Vitals().Heal(amount)
+			// healEntity owns the combatant resolution + not-found early-out
+			// (returns 0) and emits EntityHealed, so no separate resolve here.
+			healed := healEntity(ctx, targetID, e.SourceID, e.AbilityID, amount)
 			logging.From(ctx).Info("ability.heal",
 				slog.String("source", e.SourceID),
 				slog.String("target", targetID),
 				slog.String("ability", e.AbilityID),
-				slog.Int("amount", amount))
+				slog.Int("amount", healed))
 		case "heal_mind":
 			// WoT S2 Phase 4+ — Heal the Mind: the channeler's cure for saidin
 			// taint. The heal dice roll the madness REDUCED on the target (or
@@ -2765,6 +2800,47 @@ func run() error {
 				slog.String("target", targetID),
 				slog.String("ability", e.AbilityID),
 				slog.Int("reduced_by", amount), slog.Int("madness", newVal))
+		}
+	})
+
+	// item.consumed → heal (economy-survival §6.1 heal knob). A consumable
+	// carrying `heal: N` (the stimpatch) restores HP to the consumer on use.
+	// A direct-restore sibling of sustenance_value (applied in the service),
+	// but HP lives in combat.Vitals which the economy package can't reach —
+	// so the composition root owns it, funnelled through healEntity so a
+	// healing consumable is as observable as a heal weave. The consume verb
+	// already wrote "You use a stimpatch."; this adds the HP feedback.
+	bus.Subscribe(eventbus.EventItemConsumed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.ItemConsumed)
+		if !ok || e.Heal <= 0 {
+			return
+		}
+		actor := string(e.ActorID)
+		healed := healEntity(ctx, actor, actor, "stimpatch", e.Heal)
+		if healed <= 0 {
+			return // already at full HP — the consume line stands on its own
+		}
+		if a, ok := mgr.GetByPlayerID(actor); ok {
+			_ = a.Write(ctx, fmt.Sprintf("<success>You feel a rush of relief. (+%d HP)</success>", healed))
+		}
+	})
+
+	// entity.healed → notify a healed player when SOMEONE ELSE patched them
+	// up (a medic's `treat`, a heal weave from an ally). The healer's own
+	// verb/consume path writes their line; this closes the loop for the
+	// recipient so being healed is never silent. Self-heals are skipped
+	// (source == target) — the actor already saw their own feedback.
+	bus.Subscribe(eventbus.EventEntityHealed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.EntityHealed)
+		if !ok || e.SourceID == e.TargetID {
+			return
+		}
+		if a, ok := mgr.GetByPlayerID(string(e.TargetID)); ok {
+			healer := e.SourceName
+			if healer == "" {
+				healer = "Someone"
+			}
+			_ = a.Write(ctx, fmt.Sprintf("<success>%s patches you up. (+%d HP)</success>", healer, e.Amount))
 		}
 	})
 
@@ -6216,6 +6292,7 @@ func (s *consumableSink) OnItemConsumed(ctx context.Context, actorID entities.En
 		EffectDuration:  r.EffectDuration,
 		EffectData:      r.EffectData,
 		SustenanceValue: r.SustenanceValue,
+		Heal:            r.Heal,
 	})
 }
 

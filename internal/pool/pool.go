@@ -286,6 +286,27 @@ func (p *Pool) Restore(amount int) int {
 	return p.current
 }
 
+// RestoreDelta adds amount (capped at Max) and returns, in ONE lock
+// acquisition, the amount ACTUALLY restored (new − old, 0 when already
+// full) along with the resulting Current and Max. Unlike Restore (which
+// returns the new Current), this gives callers the delta and the snapshot
+// atomically, so a heal's reported/emitted amount cannot drift under a
+// concurrent damage/heal between a separate read and write. Negative
+// amounts clamp to 0.
+func (p *Pool) RestoreDelta(amount int) (restored, current, max int) {
+	if amount < 0 {
+		amount = 0
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	before := p.current
+	p.current += amount
+	if p.current > p.max {
+		p.current = p.max
+	}
+	return p.current - before, p.current, p.max
+}
+
 // Refill sets Current to Max in one lock acquisition — "restore to full".
 // Used at character creation, where a pool whose max was just raised from
 // 0 (a fresh channeler's One Power endowment) must also fill its current;

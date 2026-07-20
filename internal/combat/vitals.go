@@ -108,6 +108,15 @@ func (v *Vitals) Deplete() (wasAlive bool) { return v.p.Deplete() }
 // — the combat death flow owns whether a corpse is still a heal target.
 func (v *Vitals) Heal(amount int) int { return v.p.Restore(amount) }
 
+// HealAmount heals like Heal but returns, atomically, the HP ACTUALLY
+// restored (0 when already at max) plus the resulting current and max — so
+// a heal's player-facing "+N HP" and its EntityHealed.Amount reflect the
+// true delta rather than the raw Heal return (which is the new current).
+// Use this wherever the healed amount is reported or emitted.
+func (v *Vitals) HealAmount(amount int) (restored, current, max int) {
+	return v.p.RestoreDelta(amount)
+}
+
 // SetCurrent sets current HP to an explicit value, clamped to [0, max],
 // returning the new current (admin `set vital hp` / the `restore` verb).
 func (v *Vitals) SetCurrent(hp int) int { return v.p.SetCurrent(hp) }

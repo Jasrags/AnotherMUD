@@ -1,0 +1,19 @@
+id: medkit
+name: a medkit
+type: item
+description: |
+  A hard-shell field medkit — trauma sealant, stim ampoules, a sensor cuff, and
+  a fold-out diagnostic screen. In trained hands it closes wounds a stimpatch can
+  only paper over; the supplies run out, but the kit refills. The tool a runner's
+  medic never leaves the doss without.
+tags: [gear, medical]
+keywords: [medkit, kit, med kit]
+properties:
+  weight: 2
+  value: 250
+  # The treat verb (healing-detailed.md — First Aid + Logic) requires this
+  # flag and spends a charge of supplies per treatment. Reusable: an empty
+  # kit is kept (refillable later), not destroyed.
+  first_aid_kit: true
+  charges: 10
+  max_charges: 10

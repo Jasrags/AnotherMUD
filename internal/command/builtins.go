@@ -271,6 +271,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "eat", Handler: EatHandler, Brief: "Eat food to restore sustenance.", Syntax: []string{"eat <food>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "drink", Handler: DrinkHandler, Brief: "Drink to restore sustenance.", Syntax: []string{"drink <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "treat", Aliases: []string{"firstaid"}, Handler: TreatHandler, Brief: "Treat wounds with a medkit (First Aid).", Syntax: []string{"treat [<target>]"}},
 		{Keyword: "read", Handler: ReadHandler, Brief: "Read a recipe scroll to learn it.", Syntax: []string{"read <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "forage", Aliases: []string{"gather"}, Handler: ForageHandler, Brief: "Forage the area for ingredients.", Syntax: []string{"forage"}},
 		{Keyword: "harvest", Handler: HarvestHandler, Brief: "Harvest a resource node.", Syntax: []string{"harvest <node>"}},

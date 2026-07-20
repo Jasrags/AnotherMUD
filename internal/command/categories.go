@@ -194,6 +194,7 @@ var commandCategories = map[string]string{
 	"wake":  catSurvival,
 	"eat":   catSurvival,
 	"drink": catSurvival,
+	"treat": catSurvival,
 
 	// Crafting & Gathering.
 	"craft":   catCrafting,

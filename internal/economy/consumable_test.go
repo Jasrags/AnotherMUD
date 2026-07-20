@@ -91,6 +91,31 @@ func TestConsume_SingleUseDestroysAndFeeds(t *testing.T) {
 	}
 }
 
+// A healing consumable (the stimpatch's `heal` knob) snapshots the heal
+// amount into the result/event for the composition root to apply — the
+// service itself never touches HP (economy-survival §6.1, combat-free).
+func TestConsume_HealKnobSnapshottedIntoResult(t *testing.T) {
+	sink := &recordingConsumableSink{}
+	svc, consumer, id := newConsumeService(t, map[string]any{
+		"consume_method": "use",
+		"heal":           8,
+	}, sink)
+
+	res := svc.Consume(context.Background(), consumer, "p1", id, "")
+	if res.Outcome != ConsumeOK {
+		t.Fatalf("outcome = %v, want OK", res.Outcome)
+	}
+	if res.Heal != 8 {
+		t.Errorf("result Heal = %d, want 8", res.Heal)
+	}
+	if sink.last.Heal != 8 {
+		t.Errorf("event Heal = %d, want 8 (carried to the subscriber)", sink.last.Heal)
+	}
+	if len(consumer.inv) != 0 {
+		t.Errorf("inventory = %v, want empty (single-use destroyed)", consumer.inv)
+	}
+}
+
 func TestConsume_SustenanceClampsAt100(t *testing.T) {
 	svc, consumer, id := newConsumeService(t, map[string]any{
 		"consume_method":   "eat",

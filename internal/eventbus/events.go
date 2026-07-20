@@ -254,6 +254,10 @@ const (
 	// feature) can still read the item's state and the carried effect
 	// parameters.
 	EventItemConsumed = "item.consumed"
+	// EntityHealed fires when an intentional heal restores a target's
+	// vitals (First Aid / a healing consumable / a heal ability). The
+	// observable heal primitive; natural regen does not emit it.
+	EventEntityHealed = "entity.healed"
 
 	// EventDoorOpened / EventDoorClosed / EventDoorLocked /
 	// EventDoorUnlocked fire after a successful door state mutation
@@ -1521,10 +1525,38 @@ type ItemConsumed struct {
 	EffectDuration  int
 	EffectData      map[string]int
 	SustenanceValue int
+	// Heal is the HP the consumable restores to the actor (economy-survival
+	// §6.1 — the `heal` knob, a direct-restore sibling of sustenance_value).
+	// 0 for a non-healing consumable. Applied by the composition-root
+	// subscriber (which owns the combat.Vitals resolution), not the service.
+	Heal int
 }
 
 // Name implements Event.
 func (ItemConsumed) Name() string { return EventItemConsumed }
+
+// EntityHealed is the observable heal primitive: fired whenever an
+// intentional heal restores a target's vitals — a `treat`/First-Aid
+// action, a healing consumable (stimpatch), or a heal ability/weave.
+// Natural regen does NOT emit this (that is the passive heartbeat, not a
+// discrete heal). SourceID is the healer's entity id (equals TargetID for
+// a self-heal); Amount is the HP actually restored after clamping to max
+// (0 when the target was already full); NewHP/MaxHP are the post-heal
+// snapshot; Source is a short label for the heal's origin
+// ("first-aid", "stimpatch", the ability id) for logging/messaging.
+type EntityHealed struct {
+	TargetID   entities.EntityID
+	SourceID   entities.EntityID
+	TargetName string
+	SourceName string
+	Amount     int
+	NewHP      int
+	MaxHP      int
+	Source     string
+}
+
+// Name implements Event.
+func (EntityHealed) Name() string { return EventEntityHealed }
 
 // DoorEvent is the shared payload for door.opened / door.closed /
 // door.locked / door.unlocked / door.blocked. Spec §5.2 step 5

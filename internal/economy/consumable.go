@@ -22,12 +22,17 @@ import (
 const (
 	PropConsumeMethod   = "consume_method"
 	PropSustenanceValue = "sustenance_value"
-	PropEffectID        = "effect_id"
-	PropEffectDuration  = "effect_duration"
-	PropEffectData      = "effect_data"
-	PropCharges         = "charges"
-	PropMaxCharges      = "max_charges"
-	PropDestroyOnEmpty  = "destroy_on_empty"
+	// PropHeal is the HP a consumable restores directly on consume — a
+	// vitals sibling of sustenance_value (§6.1). The service snapshots it
+	// into the result/event; the composition root applies it (only it can
+	// reach combat.Vitals), so the economy package stays combat-free.
+	PropHeal           = "heal"
+	PropEffectID       = "effect_id"
+	PropEffectDuration = "effect_duration"
+	PropEffectData     = "effect_data"
+	PropCharges        = "charges"
+	PropMaxCharges     = "max_charges"
+	PropDestroyOnEmpty = "destroy_on_empty"
 )
 
 // ConsumeOutcome enumerates the §6.2 result reasons.
@@ -64,6 +69,7 @@ type ConsumeResult struct {
 	ItemName        string
 	Method          string
 	SustenanceValue int
+	Heal            int
 	EffectID        string
 	EffectDuration  int
 	EffectData      map[string]int
@@ -180,6 +186,7 @@ func (s *ConsumableService) Consume(ctx context.Context, consumer Consumer, acto
 		ItemName:        it.Name(),
 		Method:          method,
 		SustenanceValue: intProp(it, PropSustenanceValue),
+		Heal:            intProp(it, PropHeal),
 		EffectID:        stringProp(it, PropEffectID),
 		EffectDuration:  intProp(it, PropEffectDuration),
 		EffectData:      intMapProp(it, PropEffectData),
