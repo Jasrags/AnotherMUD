@@ -9,5 +9,10 @@ description: |
   Elliott Bay waterfront. The train doors open to the north — step <cmd>`north`</cmd>
   to board when one's in.
 terrain: indoors
+# Coord pin: end of the line, east of Pike (see metro-pike for the layout note).
+coord:
+  x: 2
+  y: 0
+  z: 0
 exits:
   up: elliott-bay-waterfront

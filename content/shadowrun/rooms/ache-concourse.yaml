@@ -13,6 +13,14 @@ description: |
   — step <cmd>`north`</cmd> when they stand open, or <cmd>`call`</cmd> the car if
   it's away.
 terrain: indoors
+# Coord anchor for the seattle-ache stack. Once any room in an area is pinned
+# (the elevator car is), the per-area auto-seed is disabled and every connected
+# component needs its own pin (room-coordinates §4.3). Pin the ground concourse
+# at the origin so the stack derives upward from here (up = +z).
+coord:
+  x: 0
+  y: 0
+  z: 0
 # The elevator doorway ("elevator" -> car, "out" from the car) is bound here at
 # boot by the transit service (default_stop 0). The `up` exit is the FIRE STAIRS —
 # the slow, movement-metered path the elevator lets you skip (transit.md §7).

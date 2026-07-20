@@ -8,5 +8,14 @@ description: |
   <exit>up</exit> to the neon of Pike Street. The train doors open to the north
   when a train pulls in — step <cmd>`north`</cmd> to board.
 terrain: indoors
+# Coord pin: the metro platforms connect to the surface only by cross-area `up`
+# exits, so within seattle-metro they're disconnected islands the BFS can't
+# place (benign `unplaced_room`). metro-financial seeds the area at the origin;
+# lay the line out eastward — Financial (0,0) → Pike (1,0) → Waterfront (2,0) —
+# with the shared train car north of the platforms.
+coord:
+  x: 1
+  y: 0
+  z: 0
 exits:
   up: pike-street

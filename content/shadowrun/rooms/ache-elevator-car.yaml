@@ -10,6 +10,14 @@ description: |
   corporate logo half polished away by a hundred thousand shoulders. When the doors
   stand open, <cmd>`out`</cmd> steps you onto the floor.
 terrain: indoors
+# Coord pin (room-coordinates §): the car has no fixed exits, so the per-area
+# BFS can't place it (a benign `unplaced_room` warning). Pin it one cell east
+# of the arcology stack (every other seattle-ache room sits at x=0, stacked by
+# z), so it maps at the ground level beside the concourse.
+coord:
+  x: 1
+  y: 0
+  z: 0
 # Orphan room: no fixed exits. The transit service binds the car's alight side
 # ("out") to the current floor at runtime, and toggles each floor's north
 # elevator door (transit.md §3). When parked with the doors open, `out` steps you

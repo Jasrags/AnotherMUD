@@ -8,6 +8,13 @@ description: |
   next. There are no buttons to press: the train runs its own route. When the
   doors open, <cmd>`out`</cmd> steps you onto the platform.
 terrain: indoors
+# Coord pin: the moving car has no fixed exits (benign `unplaced_room`). Place it
+# north of the platforms — you board "north" — between Pike and Waterfront (see
+# metro-pike for the area layout note).
+coord:
+  x: 1
+  y: 1
+  z: 0
 # Orphan room reached only through the train doors. The transit service binds the
 # alight side ("out") to the current platform and toggles each platform's north
 # door as the train arrives and leaves (transit.md §3, scheduled policy §4.2).

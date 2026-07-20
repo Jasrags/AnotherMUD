@@ -9,6 +9,14 @@ description: |
   The train doors open on the north edge of the platform when a train is in — step
   <cmd>`north`</cmd> to board.
 terrain: indoors
+# Coord anchor for the seattle-metro line. Each platform connects to the surface
+# only by a cross-area `up`, so within the area every station is its own island —
+# and once any is pinned, all need pinning (room-coordinates §4.3). Seed the line
+# at the origin: Financial (0,0) → Pike (1,0) → Waterfront (2,0), train north.
+coord:
+  x: 0
+  y: 0
+  z: 0
 # `up` surfaces on Fifth Avenue; the north exit into the train car is a real
 # door the transit service opens only while a train is dwelling here.
 exits:
