@@ -89,41 +89,41 @@ with **three origins** (Street Kid, Corporate Dropout, Ex-Security).
 > at `street-corner` still creates characters fine, but no call arrives there
 > (the fixer env isn't set).
 
-- [ ] Walk the wizard — after the name it prompts, in order: **gender**, then
+- [x] Walk the wizard — after the name it prompts, in order: **gender**, then
       **metatype** ("Choose your race:" — Dwarf/Elf/Human/Ork/Troll), then
       **role** ("Choose your class:" — **Face** *or* **Street Samurai**), then
       **origin** ("… background:" — **Corporate Dropout**, **Ex-Security**, *or*
       **Street Kid**).
-- [ ] Each **origin** carries a pick-one **feat** chooser (e.g. Street Kid:
+- [x] Each **origin** carries a pick-one **feat** chooser (e.g. Street Kid:
       Alertness *or* Stealthy; Ex-Security: Toughness *or* Great Fortitude);
       Street Kid also keeps its pick-one weapon **kit**.
-- [ ] Confirm — the character spawns at the start room (`the-flop` under
+- [x] Confirm — the character spawns at the start room (`the-flop` under
       `make run-shadowrun`).
 
 ### The role floor — always armed for your role
-- [ ] `i` + `equipment` — every character carries their **role's floor weapon**,
+- [x] `i` + `equipment` — every character carries their **role's floor weapon**,
       guaranteed regardless of origin: a **Street Samurai** starts with a **stun
       baton**, a **Face** with a **Streetline Special** holdout.
 
 ### The universal commlink
-- [ ] `i` — every runner carries a **commlink**, its tier scaled to the origin's
+- [x] `i` — every runner carries a **commlink**, its tier scaled to the origin's
       means: a **Meta Link** (Street Kid), **Renraku Sensei** (Ex-Security), or
       **Hermes Ikon** (Corporate Dropout). This is the device the fixer pings (§51).
 
 ### Papers & money by origin (the SIN spectrum)
-- [ ] `licenses` (aka `sin`, `credentials`) — the papers each origin carries:
+- [x] `licenses` (aka `sin`, `credentials`) — the papers each origin carries:
       **Street Kid = none** (SINless — the defining edge *and* liability),
       **Ex-Security = a national SIN** (a firearms license),
       **Corporate Dropout = a corporate SIN** (firearms + corporate licenses).
-- [ ] `score` purse — nuyen by origin: **Street Kid 500 / Ex-Security 1,000 /
+- [x] `score` purse — nuyen by origin: **Street Kid 500 / Ex-Security 1,000 /
       Corporate Dropout 2,500** (shown as `Gold`; the nuyen skin is cosmetic).
 
 ### The score sheet
-- [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class**, a
+- [x] `score` (`sc`) — the identity line reads **Gender Metatype Class**, a
       **Background** line below it, the **eight SR primaries** (BOD AGI REA STR WIL
       LOG INT CHA) + **Edge** (EDG), the track **Level 1 - The Long Run** (§43),
       and **MA 0/0** (no channeling).
-- [ ] `skills` — a **Face** shows the social spread (Negotiation, Con,
+- [x] `skills` — a **Face** shows the social spread (Negotiation, Con,
       Intimidation) + Perception; a **Street Samurai** the weapon-skill spread
       (§50). The origin's life-skills (Street Kid: Sneaking/Perception;
       Ex-Security: Survival/First Aid) fold in — an overlap takes the higher rating.
@@ -533,9 +533,11 @@ visibility §4.3, ranged-combat §5.3):
 They are sourced two ways — a **cybereye** enhancement (`modify cybereyes <mode>`,
 then wear the eyes) or worn **eyewear** (the new `eyes` slot, no surgery):
 
-- [ ] From the Westlake tray, `get cybereyes`, `get thermographic`, `modify
-      cybereyes thermographic`, `equip cybereyes`. Or `get low-light goggles`,
-      `equip goggles` — the goggles take the eyes slot.
+- [ ] Get the gear (Westlake no longer stocks a tray — source it from a ripperdoc
+      in play, or `spawn` it for this check): `spawn item cybereyes me`, `spawn item
+      cybereye-thermographic me`, then `modify cybereyes thermographic`, `equip
+      cybereyes`. Or `spawn item low-light-goggles me`, `equip goggles` — the
+      goggles take the eyes slot.
 - [ ] The dark room: from Westlake Plaza go `down` into the **maintenance
       sublevel**. As a **human** (no racial dark vision), `look` reads *pitch black,
       you can see nothing* — name, prose, and exits all withheld. `modify cybereyes
