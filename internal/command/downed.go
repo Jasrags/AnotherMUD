@@ -61,12 +61,15 @@ func FinishHandler(ctx context.Context, c *Context) error {
 	room := c.Actor.Room()
 	attacker := combat.NewPlayerCombatantID(c.Actor.PlayerID())
 	target := combat.NewMobCombatantID(string(m.ID()))
+	// Narrate the player's own action FIRST, then run the kill: c.Finish fires the
+	// death pipeline synchronously (its slain + karma lines), so writing the blow
+	// after would read backwards ("You have slain X" before "You deliver a blow").
+	_ = c.Actor.Write(ctx, fmt.Sprintf("<warning>You deliver a killing blow to the helpless %s.</warning>", name))
 	if !c.Finish(ctx, target, attacker, room.ID) {
-		return c.Actor.Write(ctx, fmt.Sprintf("You fail to finish %s off.", name))
+		// Lost the race to another killer — the blow above found only a corpse.
+		return c.Actor.Write(ctx, fmt.Sprintf("<subtle>Your blow lands, but %s was already dead.</subtle>", name))
 	}
-	// The death pipeline announces the kill + corpse to the room; keep the
-	// verb's own line to the actor a terse, cold confirmation.
-	return c.Actor.Write(ctx, fmt.Sprintf("<warning>You deliver a killing blow to the helpless %s.</warning>", name))
+	return nil
 }
 
 // RobHandler implements `rob <mob>` (non-lethal loot, subdual-damage): take a

@@ -55,8 +55,14 @@ func TestLive_FinishDownedHalloweener(t *testing.T) {
 	send("afflict halloweener unconscious")
 	killed := send("finish halloweener")
 	t.Logf("FINISH OUTPUT:\n%s", killed)
-	if !strings.Contains(strings.ToLower(killed), "killing blow") {
+	low := strings.ToLower(killed)
+	blow := strings.Index(low, "killing blow")
+	if blow < 0 {
 		t.Fatalf("finish did not report a killing blow:\n%s", killed)
+	}
+	// The action line must read BEFORE the death pipeline's kill announcement.
+	if slain := strings.Index(low, "slain"); slain >= 0 && blow > slain {
+		t.Fatalf("ordering: 'killing blow' should precede the kill announcement:\n%s", killed)
 	}
 
 	// A real death leaves a corpse in the room (a knock-out would not).
