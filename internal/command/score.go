@@ -327,6 +327,16 @@ func itemEffectSummary(attrs *progression.AttributeSet, inst *entities.ItemInsta
 	if ab := inst.ArmorBonus(); ab != 0 {
 		parts = append(parts, fmt.Sprintf("Armor %d", ab))
 	}
+	// Typed damage soak (armor-depth §4): the item's own resistances plus any an
+	// installed mod adds — a ballistic weave's piercing soak. Surfaced here so an
+	// armor mod shows on the worn readout the way a weapon accessory's +hit does;
+	// without it a weave is invisible on `eq` (it is neither a stat modifier nor a
+	// flat armor bonus). Sorted for a stable line.
+	if res := inst.Resistances(); len(res) > 0 {
+		for _, dt := range sortedIntKeys(res) {
+			parts = append(parts, fmt.Sprintf("%+d %s soak", res[dt], dt))
+		}
+	}
 	return strings.Join(parts, ", ")
 }
 

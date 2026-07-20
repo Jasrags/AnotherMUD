@@ -390,6 +390,38 @@ func TestEquipment_ShowsArmorEffect(t *testing.T) {
 	}
 }
 
+// A worn armor's typed soak — including a mod's contribution (a ballistic
+// weave's piercing soak) — surfaces on the eq readout, so an armor mod is
+// visible the way a weapon accessory's +hit is. Without this the weave was
+// invisible on eq (it is neither a stat modifier nor a flat armor bonus).
+func TestEquipment_ShowsResistanceSoak(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	// Typed soak surfaces on the eq readout. `Resistances()` aggregates the
+	// armor's own soak AND any an installed mod adds (a ballistic weave), so a
+	// baked-in resistance exercises the same display path itemEffectSummary reads
+	// — the mod-aggregation half is covered by the item-modification tests. Head
+	// slot: the fixture registers head, not body.
+	cap := &item.Template{
+		ID: "sr:soak-cap", Name: "a plated cap", Type: "armor",
+		Keywords: []string{"cap"}, ArmorBonus: 3, EligibleSlots: []string{"head"},
+		Resistances: map[string]int{"piercing": 2},
+	}
+	f.spawnInInventory(t, cap, a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip cap head")
+	dispatch(t, r, f.env(), a, "eq")
+
+	got := a.lastLine()
+	if !strings.Contains(got, "piercing soak") {
+		t.Errorf("eq did not show the armor's soak, want '+2 piercing soak'\n--- got ---\n%s", got)
+	}
+	if !strings.Contains(got, "Armor 3") {
+		t.Errorf("eq lost the base armor readout\n--- got ---\n%s", got)
+	}
+}
+
 func TestEquipment_EmptySlotHasNoEffectTail(t *testing.T) {
 	// A bare loadout renders no "()" noise on empty slots.
 	f := newEqFixture(t)
