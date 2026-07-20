@@ -1378,76 +1378,18 @@ func run() error {
 		if !ok {
 			return
 		}
-		// Resolve the actor and grant every class's level-1 Path (one class
-		// today; wot-character-model D1 seam). The event payload carries the
-		// primary class, but we walk the live list so a multiclass character
-		// gets all its starting features.
-		actor, ok := mgr.GetByPlayerID(e.EntityID)
-		if !ok {
-			return
-		}
-		// Metatype starting-attribute skew (sr-m3c-deferred-fixes): an ork
-		// begins stronger, a troll far stronger. Applied once via the same
-		// ApplyStartingStats seam as a class's StartingStats — additive
-		// AdjustBase, persisted into the base snapshot, never re-fired on
-		// relogin (RestoreBase carries it). Distinct from the race's StatCaps
-		// (its train ceiling); ApplyStartingStats no-ops an empty map, so a
-		// metatype with no skew (human) is a clean pass-through.
-		if rid := actor.RaceID(); rid != "" {
-			if race, ok := registries.Races.Get(rid); ok {
-				actor.ApplyStartingStats(race.StatBonuses)
-			}
-		}
-		for _, classID := range actor.ClassIDs() {
-			// Spec §4.5 step 3: character-created is treated as level 1
-			// with no track gate. Pass empty trackName so Apply
-			// short-circuits the gate check.
-			classPath.Apply(ctx, e.EntityID, classID, "", 1)
-			// WoT S2 Phase 1: a flat level-1 base-stat endowment (the
-			// channeler's resource_max One Power pool). Applied additively
-			// via AdjustBase so it composes across a multiclass character;
-			// it persists into the base snapshot and the OnMaxChange listener
-			// (wired in seedResourcePools at login) propagates a resource_max
-			// bump straight to the live mana pool. Fires once — this event
-			// never re-fires on relogin, where RestoreBase carries the value.
-			if cls, ok := registries.Classes.Get(classID); ok {
-				actor.ApplyStartingStats(cls.StartingStats)
-				// Role "floor" kit (role×origin creation): the class's guaranteed
-				// starting gear — a samurai's stun baton, a Face's holdout — spawned
-				// into inventory once at creation, so a role is playable regardless
-				// of the origin's wealth. The background package (below) layers
-				// money + upgrades on top. Fires once; never re-granted on login.
-				backgroundGranter.GrantStartingItems(e.EntityID, cls.StartingItems)
-			}
-		}
-		// A freshly created character starts with full resource pools: the
-		// StartingStats above raised a channeler's resource_max via OnMaxChange,
-		// but SetMax leaves current at 0 (level-up semantics), so fill once here.
-		actor.FillResourcePools()
-		// Likewise for HP: a metatype's hp_max StatBonus (an ork/troll's larger
-		// Physical monitor — sr-m3c-deferred-fixes) raised the Vitals ceiling via
-		// OnMaxChange, but SetMax leaves current alone, so top HP to full once at
-		// creation. A metatype with no hp_max bonus is already full ⇒ a no-op.
-		actor.FillVitals()
-		// backgrounds §4: grant the chosen background's starting package once,
-		// applying the pick-one chooser selections (the chosen feat + equipment
-		// package, persisted on the save at creation — v29).
-		if bgID := actor.BackgroundID(); bgID != "" {
-			if bg, ok := registries.Backgrounds.Get(bgID); ok {
-				feat, equip := actor.BackgroundChoices()
-				backgroundGranter.Grant(ctx, e.EntityID, bg, session.BackgroundChoices{Feat: feat, EquipmentIndex: equip})
-			}
-		}
-		// feats §2.2 (EPIC S4 Phase 2): the base feat slot granted at creation
-		// (1 feat at character creation). Per-3-levels slots accrue from the
-		// level-up subscriber; background/class feat grants are Phase 5.
-		actor.CreditFeats(1)
-
-		// onboarding-guide.md: the background grant above put a commlink in the
-		// fresh runner's inventory, so deliver the one-time first-entry commlink
-		// call now (the enter-world path ran before the grants, when a new
-		// character's inventory was still empty). Idempotent via the shown-once record.
-		mgr.DeliverCommlinkCallFor(ctx, e.EntityID)
+		// The full one-time creation-grant sequence — metatype skew, per-class
+		// level-1 features + floor kit, the background package, the base feat slot,
+		// the fill-to-full (which MUST run last, after any max_hp-raising feat —
+		// the 20/23-bug ordering), and the first-entry commlink call. Extracted to
+		// session.Manager so that ordering is unit-tested (creation_grants_test.go).
+		mgr.ApplyCharacterCreated(ctx, e.EntityID, session.CreationGrants{
+			Races:       registries.Races,
+			Classes:     registries.Classes,
+			Backgrounds: registries.Backgrounds,
+			ClassPath:   classPath,
+			Granter:     backgroundGranter,
+		})
 	})
 
 	// M9.6: render ability resolution outcomes to players. The
