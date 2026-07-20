@@ -29,6 +29,9 @@ feat_options:
 # the role's stun-baton floor — is HOT at a checkpoint or a licensed shop.
 items:
   - meta-link
+  # A stimpatch — the one bit of medical gear even a broke runner scrounges
+  # for (`use stimpatch`). Always granted, so every loadout below includes it.
+  - stimpatch
 # Pick-one starting kit (backgrounds §2). Three loadouts a fresh runner might
 # have scraped together — the gunslinger, the blade, or the non-lethal
 # specialist. All items are shadowrun-pack gear (SR-M3c-2).

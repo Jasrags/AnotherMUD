@@ -30,6 +30,9 @@ properties:
     # §3.6a). Explicit so the lane can't drift if the stock list grows.
     buys: [cyberware]
     sells:
+      # Medical supplies — a clinic keeps kits and patches on the shelf.
+      - shadowrun:medkit
+      - shadowrun:stimpatch
       # Reflexes — the cheap bioware edge up to the brutal cyber overclock.
       - shadowrun:reaction-enhancers
       - shadowrun:wired-reflexes

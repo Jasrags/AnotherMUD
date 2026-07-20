@@ -46,4 +46,7 @@ properties:
       - shadowrun:caseless-round
       - shadowrun:armor-vest
       - shadowrun:armored-jacket
+      # Field medical gear — an arms boutique stocks the medkit and patches.
+      - shadowrun:medkit
+      - shadowrun:stimpatch
     buys: [weapon, ammo, armor]

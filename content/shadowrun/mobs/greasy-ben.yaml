@@ -30,6 +30,9 @@ properties:
     # sink where a fresh haul turns into nuyen.
     buys: [weapon, ammo, armor, cyberware, tradegood, contraband, component]
     sells:
+      # Back-alley medicine — Ben works a surgical tray next to the griddle.
+      - shadowrun:medkit
+      - shadowrun:stimpatch
       - shadowrun:armored-jacket
       - shadowrun:armor-vest
       - shadowrun:combat-knife

@@ -34,6 +34,8 @@ properties:
       - shadowrun:soykaf
       - shadowrun:red-eye-cocktail
       - shadowrun:real-scotch
+      # A stimpatch under the bar — the barkeep's patch-up for a rough night.
+      - shadowrun:stimpatch
   # Free-form dialogue (the `ask <npc> about <topic>` verb): each topic maps to a
   # line, or a LIST of lines that rotates on repeat — so `ask doug about laws`
   # cycles Coughlin's Laws. Topic keys match case-insensitively; `default` is the

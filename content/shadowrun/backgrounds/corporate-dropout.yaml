@@ -33,6 +33,8 @@ items:
   - actioneer-business-clothes
   - armor-vest
   - ares-light-fire-70
+  # A stimpatch — the basic self-care every runner carries (`use stimpatch`).
+  - stimpatch
 # Severance money — the fattest starting pouch of the three origins.
 gold: 2500
 allowed_categories:

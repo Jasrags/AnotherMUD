@@ -25,3 +25,5 @@ properties:
       - shadowrun:novacoke
       - shadowrun:btl-chip
       - shadowrun:red-eye-cocktail
+      # A stimpatch off the convenience-store shelf.
+      - shadowrun:stimpatch

@@ -31,6 +31,9 @@ items:
   - armored-jacket
   - ares-predator-v
   - caseless-round
+  # A stimpatch — field first aid the veteran always keeps on hand (they can
+  # also `treat` with a medkit, having the First Aid skill).
+  - stimpatch
 gold: 1000
 allowed_categories:
   - humanoid

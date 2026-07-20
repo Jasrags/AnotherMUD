@@ -137,14 +137,32 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 			t.Fatalf("%s background not loaded", tc.id)
 		}
 		found := false
+		// Every background grants a stimpatch in its always-on base gear
+		// (basic self-care every runner carries). Item ids fail-soft on a
+		// typo, so pin it here so a future edit can't silently drop it.
+		foundStim := false
 		for _, it := range bg.Items {
 			if it == tc.wantItem {
 				found = true
-				break
+			}
+			if it == "shadowrun:stimpatch" {
+				foundStim = true
 			}
 		}
 		if !found {
 			t.Errorf("%s Items = %v, want to contain %s", tc.id, bg.Items, tc.wantItem)
+		}
+		if !foundStim {
+			t.Errorf("%s Items = %v, want to contain shadowrun:stimpatch (base first aid)", tc.id, bg.Items)
+		}
+	}
+
+	// The medical items back both the background grants above and the vendor
+	// sells lists (ripperdoc / fixer / ares-arms-clerk / greasy-ben / street-doc
+	// / the bars); a bad id fails soft in both, so confirm they registered.
+	for _, id := range []string{"shadowrun:stimpatch", "shadowrun:medkit"} {
+		if _, err := regs.Items.Get(item.TemplateID(id)); err != nil {
+			t.Errorf("medical item %s not loaded: %v", id, err)
 		}
 	}
 

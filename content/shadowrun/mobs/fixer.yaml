@@ -39,6 +39,9 @@ properties:
     # salvage) off a runner's hands (economy-survival §3.6a).
     buys: [weapon, ammo, armor, cyberware, weapon-accessory, armor-mod, cyberware-mod, tradegood, contraband, component]
     sells:
+      # Medical supplies — a full-service fixer moves field medicine too.
+      - shadowrun:medkit
+      - shadowrun:stimpatch
       # Ammo SKUs (ammo-and-reloading §6): a pre-loaded clip (the primary buy),
       # loose rounds (refills), and an empty clip (a cheap spare to fill).
       - shadowrun:predator-clip-loaded
