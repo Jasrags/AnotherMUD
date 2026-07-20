@@ -826,6 +826,10 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		// and we stop swinging on a corpse.
 		return swingStop
 	}
+	// Amount the defender's soak actually absorbed: pre-soak damage (the
+	// crit-multiplied dice + flat bonus) minus what landed. Reported so renderers
+	// can explain an armour-floored hit (esp. a soaked crit).
+	absorbed := max(0, dmg+in.atkStats.DamageBonus-raw)
 	cfg.Sink.OnHit(ctx, Hit{
 		AttackerID:   in.attackerID,
 		TargetID:     in.targetID,
@@ -835,6 +839,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		Damage:       raw,
 		DamageType:   DamageTypePhysical,
 		IsCritical:   outcome.critical,
+		Soak:         absorbed,
 		Subdual:      in.atkStats.Subdual,
 		RoomID:       in.attackerRoom,
 	})

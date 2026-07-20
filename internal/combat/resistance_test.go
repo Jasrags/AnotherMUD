@@ -136,3 +136,38 @@ func TestAutoAttack_ResistanceFlooredAtOne(t *testing.T) {
 		t.Fatalf("want 1 hit of 1 damage (floored under full resistance), got %+v", hits)
 	}
 }
+
+// The Hit event reports how much the defender's soak absorbed, so a renderer can
+// explain an armour-floored hit (esp. a soaked crit that would otherwise read
+// "1 damage. A critical hit!"). Pre-soak 1d1+5 = 6, Mitigation 20 → floored to 1,
+// so Soak = 6 − 1 = 5.
+func TestAutoAttack_HitReportsSoakedAmount(t *testing.T) {
+	atk := Stats{HitMod: 100, DamageBonus: 5, Damage: DiceExpr{1, 1, 0}}
+	def := Stats{AC: 10, Mitigation: 20}
+	rig := newAutoAttackRig(t, atk, def, 10, 50, []int{9, 0}) // always hit; 1d1 → 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if hits[0].Damage != 1 {
+		t.Errorf("damage = %d, want 1 (floored under full soak)", hits[0].Damage)
+	}
+	if hits[0].Soak != 5 {
+		t.Errorf("soak = %d, want 5 (6 pre-soak − 1 floor)", hits[0].Soak)
+	}
+}
+
+// A hit that gets through cleanly reports zero soak absorbed.
+func TestAutoAttack_UnsoakedHitReportsZeroSoak(t *testing.T) {
+	atk := Stats{HitMod: 100, DamageBonus: 5, Damage: DiceExpr{1, 1, 0}}
+	def := Stats{AC: 10} // no mitigation
+	rig := newAutoAttackRig(t, atk, def, 10, 50, []int{9, 0})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Soak != 0 {
+		t.Fatalf("hits=%+v, want one hit with Soak 0", hits)
+	}
+}

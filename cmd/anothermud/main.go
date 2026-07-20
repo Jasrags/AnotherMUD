@@ -5142,6 +5142,19 @@ func (s *productionCombatSink) OnHit(ctx context.Context, e combat.Hit) {
 		return
 	}
 
+	// A critical whose damage the defender's armour fully soaked to the 1-damage
+	// floor: don't dramatize it as a big hit ("1 damage. A critical hit!" reads
+	// as broken). Reword to convey the armour won, and show what it ate. Only the
+	// floored case (Damage 1 with soak absorbed) — a crit that got through keeps
+	// the normal flourish below.
+	if e.IsCritical && e.Damage <= 1 && e.Soak > 0 {
+		s.tell(ctx, e.AttackerID, fmt.Sprintf("<good>Your critical hit glances off %s's armor — %d damage (%d soaked).</good>", tn, e.Damage, e.Soak))
+		s.tell(ctx, e.TargetID, fmt.Sprintf("<danger>%s's critical hit glances off your armor — %d damage.</danger>", an, e.Damage))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s's blow glances off %s's armor.", an, tn), e.AttackerID, e.TargetID)
+		s.interruptCast(ctx, e.TargetID, "hit")
+		return
+	}
+
 	// M10 rendering: second-person to each player participant, third to
 	// the room. damage numbers are now visible (closes m9-6 #2).
 	crit := ""

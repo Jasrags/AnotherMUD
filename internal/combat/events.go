@@ -96,6 +96,12 @@ type Hit struct {
 	Damage       int
 	DamageType   string
 	IsCritical   bool
+	// Soak is the amount of damage the defender's armour/soak absorbed on this
+	// swing (pre-soak damage minus the applied Damage). 0 when nothing was
+	// soaked. Renderers use it to explain a hit that armour floored to 1 — e.g. a
+	// crit whose damage was fully absorbed reads "glances off the armour" rather
+	// than a misleading "critical hit!" beside a 1-damage number.
+	Soak int
 	// Subdual is true when the wielded weapon is nonlethal (subdual-damage §2).
 	// Carried for renderers (a knock-out blow reads differently from a wound);
 	// the mechanical consequence rides VitalDepleted.Subdual on a finishing blow.
