@@ -38,6 +38,71 @@ func modEnvWithSpawn(f *eqFixture) command.Env {
 	return env
 }
 
+// A keyword shared with a NON-modifiable item (a loaded clip whose name carries
+// "Ares Predator V") must not shadow the real host: `modify <shared> <mod>`
+// resolves the modifiable weapon, not the clip. Regression for the reported
+// "A loaded Ares Predator V clip can't be modified." on `modify Ares laser`.
+func TestModify_PrefersModifiableOverCollidingKeyword(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+
+	// Spawn the non-modifiable clip FIRST (its name "an Ares Predator V clip"
+	// matches "predator") so, without the preference, it would win resolution.
+	f.spawnInInventory(t, predatorClipTpl(), a)
+	gun := f.spawnInInventory(t, predatorGunTpl(), a)
+	laser := f.spawnInInventory(t, modLaserTpl(), a)
+
+	dispatch(t, r, f.env(), a, "modify predator laser")
+
+	if containsID(a.Inventory(), laser.ID()) {
+		t.Error("the laser should attach to the gun (modifiable), not fail on the clip")
+	}
+	if occ := gun.OccupiedMounts(); len(occ) != 1 {
+		t.Fatalf("gun occupied mounts = %v, want one accessory attached", occ)
+	}
+	if out := a.lastLine(); strings.Contains(out, "can't be modified") {
+		t.Errorf("resolution grabbed the non-modifiable clip: %q", out)
+	}
+}
+
+// The info form surfaces WHAT an installed mod gives (item-modification §8), so a
+// player who slots a ballistic weave sees the +2 piercing soak — not just the
+// mod's name, and not a base armor number that (correctly) didn't move.
+func TestModify_InfoShowsModEffect(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, modVestTpl(), a)
+	f.spawnInInventory(t, modWeaveTpl(), a)
+
+	dispatch(t, r, f.env(), a, "modify vest weave")
+	dispatch(t, r, f.env(), a, "modify vest") // the info form
+
+	if out := a.lastLine(); !strings.Contains(out, "piercing soak") {
+		t.Errorf("modify info did not surface the weave's effect: %q", out)
+	}
+}
+
+// predatorGunTpl is a modifiable weapon whose name/keywords collide with the
+// non-modifiable clip on "predator".
+func predatorGunTpl() *item.Template {
+	return &item.Template{
+		ID: "sr:predator", Name: "an Ares Predator V", Type: "weapon",
+		Keywords: []string{"predator", "ares", "pistol", "gun"}, EligibleSlots: []string{"wield"},
+		WeaponDamage: "2d6", Mounts: []string{"barrel", "top", "under-barrel"},
+	}
+}
+
+// predatorClipTpl is a NON-modifiable clip whose name matches "predator" — the
+// collision that used to shadow the gun in `modify` resolution.
+func predatorClipTpl() *item.Template {
+	return &item.Template{
+		ID: "sr:predator-clip", Name: "an Ares Predator V clip", Type: "item",
+		Keywords: []string{"clip", "magazine"}, HolderFits: "heavy-pistol", Magazine: 15,
+	}
+}
+
 func TestModify_InstallConsumesModAndReportsCapacity(t *testing.T) {
 	r := newRegistry(t)
 	f := newEqFixture(t)

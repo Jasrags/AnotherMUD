@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -37,9 +38,35 @@ func resolveCarried(c *Context, token string) (*entities.ItemInstance, bool) {
 // currently worn/wielded (item-modification §5 — worn hosts are modifiable, with
 // a live re-apply). Inventory is checked first; equipment second.
 func resolveModHost(c *Context, token string) (host *entities.ItemInstance, worn bool, ok bool) {
-	if h, found := resolveCarried(c, token); found {
+	carried := collectItems(c.Items, c.Actor.Inventory())
+	wornItems := equippedItems(c)
+
+	// Prefer a MODIFIABLE match so a keyword shared with a non-modifiable item
+	// doesn't shadow the real host — e.g. a loaded clip whose NAME carries "Ares
+	// Predator V" would otherwise win `modify Ares laser` over the gun itself.
+	// Carried modifiable first (mirrors the original inventory-before-equipment
+	// order), then worn modifiable.
+	if h := resolveModifiable(carried, token); h != nil {
 		return h, false, true
 	}
+	if h := resolveModifiable(wornItems, token); h != nil {
+		return h, true, true
+	}
+
+	// Fallback: any carried/worn match, so `modify <non-host>` still resolves and
+	// reports "… can't be modified." rather than "you aren't carrying that."
+	if h := resolveItem(carried, token); h != nil {
+		return h, false, true
+	}
+	if h := resolveItem(wornItems, token); h != nil {
+		return h, true, true
+	}
+	return nil, false, false
+}
+
+// equippedItems returns the actor's equipped item instances, de-duplicated
+// (a spanning item occupies multiple slot keys under one id).
+func equippedItems(c *Context) []*entities.ItemInstance {
 	ids := make([]entities.EntityID, 0, len(c.Actor.Equipment()))
 	seen := make(map[entities.EntityID]bool)
 	for _, id := range c.Actor.Equipment() {
@@ -49,12 +76,29 @@ func resolveModHost(c *Context, token string) (host *entities.ItemInstance, worn
 		seen[id] = true
 		ids = append(ids, id)
 	}
-	if named := keyword.Resolve(asNamed(collectItems(c.Items, ids)), token); named != nil {
-		if h, isItem := named.(*entities.ItemInstance); isItem {
-			return h, true, true
+	return collectItems(c.Items, ids)
+}
+
+// resolveModifiable keyword-matches token against only the MODIFIABLE items in
+// the set (capacity or mount hosts); nil when none match.
+func resolveModifiable(items []*entities.ItemInstance, token string) *entities.ItemInstance {
+	hosts := make([]*entities.ItemInstance, 0, len(items))
+	for _, it := range items {
+		if it.IsModifiable() {
+			hosts = append(hosts, it)
 		}
 	}
-	return nil, false, false
+	return resolveItem(hosts, token)
+}
+
+// resolveItem keyword-resolves token against an item set; nil when no match.
+func resolveItem(items []*entities.ItemInstance, token string) *entities.ItemInstance {
+	if named := keyword.Resolve(asNamed(items), token); named != nil {
+		if it, ok := named.(*entities.ItemInstance); ok {
+			return it
+		}
+	}
+	return nil
 }
 
 // upFirst capitalizes the first rune so an item name can open a sentence.
@@ -219,26 +263,84 @@ func modLookLine(it *entities.ItemInstance) string {
 		if len(mods) == 0 {
 			return fmt.Sprintf("Accessory mounts: %d (all free).", len(it.Mounts()))
 		}
-		names := make([]string, 0, len(mods))
-		for _, m := range mods {
-			names = append(names, m.Name)
-		}
 		return fmt.Sprintf("Accessory mounts: %d (%d free). Attached: %s.",
-			len(it.Mounts()), len(it.FreeMounts()), strings.Join(names, ", "))
+			len(it.Mounts()), len(it.FreeMounts()), modNamesWithEffects(mods))
 	case it.Capacity() > 0: // capacity host (item-modification §8)
 		mods := it.InstalledMods()
 		if len(mods) == 0 {
 			return fmt.Sprintf("Capacity %d (all free).", it.Capacity())
 		}
-		names := make([]string, 0, len(mods))
-		for _, m := range mods {
-			names = append(names, m.Name)
-		}
 		return fmt.Sprintf("Capacity %d (%d free). Installed: %s.",
-			it.Capacity(), it.FreeCapacity(), strings.Join(names, ", "))
+			it.Capacity(), it.FreeCapacity(), modNamesWithEffects(mods))
 	default:
 		return ""
 	}
+}
+
+// modNamesWithEffects joins installed mods as "name (effect)" for the one-line
+// look summary, so the wearer sees what each mod gives — e.g. "a ballistic weave
+// insert (+2 piercing soak)". A mod with no surfaced effect shows just its name.
+func modNamesWithEffects(mods []entities.InstalledMod) string {
+	parts := make([]string, 0, len(mods))
+	for _, m := range mods {
+		if eff := modEffectSummary(m); eff != "" {
+			parts = append(parts, fmt.Sprintf("%s (%s)", m.Name, eff))
+		} else {
+			parts = append(parts, m.Name)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// modEffectSummary renders what an installed mod PROVIDES while its host is
+// equipped (item-modification §8) — the armor/soak/to-hit/protection/grant it
+// contributes — so a player can see the payoff, not just the mod's name. Empty
+// when the mod carries no surfaced effect (an inert record-now accessory).
+// Note a resistance (e.g. a ballistic weave's piercing soak) is NOT the same as
+// the garment's flat armor rating: it reduces one damage type, so the base armor
+// number is unchanged — surfacing it here is how the wearer sees the benefit.
+func modEffectSummary(m entities.InstalledMod) string {
+	parts := make([]string, 0, 4)
+	if m.ArmorBonus != 0 {
+		parts = append(parts, fmt.Sprintf("%+d armor", m.ArmorBonus))
+	}
+	for _, dt := range sortedIntKeys(m.Resistances) {
+		parts = append(parts, fmt.Sprintf("%+d %s soak", m.Resistances[dt], dt))
+	}
+	for _, mod := range m.Modifiers {
+		parts = append(parts, fmt.Sprintf("%+d %s", mod.Value, friendlyStat(mod.Stat)))
+	}
+	for _, p := range m.Protection {
+		parts = append(parts, "protects vs "+p)
+	}
+	for _, g := range m.Grants {
+		parts = append(parts, "grants "+g)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// friendlyStat maps an engine stat key to a player-facing label for the mod
+// effect summary; unknown keys pass through unchanged.
+func friendlyStat(stat string) string {
+	switch stat {
+	case "hit_mod":
+		return "to-hit"
+	case "armor_check":
+		return "armor check"
+	default:
+		return stat
+	}
+}
+
+// sortedIntKeys returns a map's keys in deterministic (sorted) order so the
+// effect summary reads the same every time.
+func sortedIntKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // modInfoLines renders the host's capacity/mounts + installed-mod list (§8),
@@ -257,6 +359,9 @@ func modInfoLines(host *entities.ItemInstance) string {
 		upFirst(host.Name()), host.Capacity(), host.UsedCapacity(), host.FreeCapacity())
 	for _, m := range mods {
 		fmt.Fprintf(&b, "\n  - %s [%d]", m.Name, m.CapacityCost)
+		if eff := modEffectSummary(m); eff != "" {
+			fmt.Fprintf(&b, " — %s", eff)
+		}
 	}
 	return b.String()
 }
@@ -264,17 +369,21 @@ func modInfoLines(host *entities.ItemInstance) string {
 // mountInfoLines lists a weapon host's mount points, each with its occupant or
 // "(empty)" (weapon-accessories §8).
 func mountInfoLines(host *entities.ItemInstance) string {
-	occupant := make(map[string]string)
+	occupant := make(map[string]entities.InstalledMod)
 	for _, m := range host.InstalledMods() {
-		occupant[m.Mount] = m.Name
+		occupant[m.Mount] = m
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s — accessory mounts:", upFirst(host.Name()))
 	for _, mount := range host.Mounts() {
-		if name, ok := occupant[mount]; ok {
-			fmt.Fprintf(&b, "\n  - %s: %s", mount, name)
-		} else {
+		m, ok := occupant[mount]
+		if !ok {
 			fmt.Fprintf(&b, "\n  - %s: (empty)", mount)
+			continue
+		}
+		fmt.Fprintf(&b, "\n  - %s: %s", mount, m.Name)
+		if eff := modEffectSummary(m); eff != "" {
+			fmt.Fprintf(&b, " — %s", eff)
 		}
 	}
 	return b.String()

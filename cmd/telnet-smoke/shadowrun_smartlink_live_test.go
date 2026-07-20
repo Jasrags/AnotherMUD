@@ -66,13 +66,15 @@ func TestLive_SmartlinkPairing(t *testing.T) {
 		t.Fatal("a smartlink WITHOUT a smartgun wrongly reports a pairing")
 	}
 
-	// Now the other half: wield the starting Ares Predator V and bolt a smartgun
-	// system onto it. Both halves present → pairing ACTIVE.
+	// Now the other half: wield an Ares Predator V and bolt a smartgun system onto
+	// it. Both halves present → pairing ACTIVE. Self-provision the pistol (the
+	// street-corner start no longer drops one — creation gear replaced the go-bag).
 	send("spawn item smartgun-system me")
-	if out := send("equip pistol wield"); !strings.Contains(strings.ToLower(out), "predator") {
-		t.Fatalf("could not wield the starting pistol:\n%s", out)
+	send("spawn item ares-predator-v me")
+	if out := send("equip predator wield"); !strings.Contains(strings.ToLower(out), "predator") {
+		t.Fatalf("could not wield the spawned pistol:\n%s", out)
 	}
-	if out := send("modify pistol smartgun"); !strings.Contains(strings.ToLower(out), "attach") {
+	if out := send("modify predator smartgun"); !strings.Contains(strings.ToLower(out), "attach") {
 		t.Fatalf("could not attach the smartgun to the wielded pistol:\n%s", out)
 	}
 	if !paired(send("score")) {
@@ -80,7 +82,7 @@ func TestLive_SmartlinkPairing(t *testing.T) {
 	}
 
 	// Un-wield the smart gun → the pairing drops (the smartlink alone is inert).
-	send("unequip pistol")
+	send("unequip predator")
 	if paired(send("score")) {
 		t.Fatal("pairing still reported after un-wielding the smartgun weapon")
 	}
