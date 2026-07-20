@@ -182,6 +182,34 @@ Before writing any code, briefly explain:
 
 Keep this to 3-5 sentences. Don't skip it even for small changes.
 
+### Search before adding — never guess on existing code
+
+Before writing **any** new function, type, method, or constant, **grep the
+codebase for one that already does the job.** Do NOT assume it doesn't exist and
+write a fresh one — that is how duplicates, name collisions, and drift creep in.
+This is a hard rule.
+
+- **grep first.** Run e.g. `grep -rn "func <name>\|type <Name>\|<concept>"
+  internal/` before defining anything. It catches (a) an existing helper you
+  should reuse, (b) a name collision — two funcs can't share a name in a package
+  (this session's `statLabel` clash), and (c) an exported constant to reuse
+  instead of a bare literal (`economy.TagCredential`, not `"credential"`;
+  `economy.PropCredentialRating`, not `"credential_rating"`).
+- **Confirm shape against the code, not memory.** When you need a registry
+  lookup, a formatter, a struct field, or a method signature, open the actual
+  definition and read it — do not infer the shape from a similar API elsewhere or
+  from a recalled memory (which may be stale). Verify `file:line` before relying
+  on it.
+- **Prefer the existing seam.** If a helper/constant/registry already does most
+  of it, extend or reuse it rather than writing a parallel one (DRY). The repo
+  keeps one home for most concerns — the composition root wires deps, `srckey`
+  breaks the entities↔stats cycle, etc.
+- **When a search genuinely comes up empty, say so** ("no existing X — adding
+  one") rather than silently creating a duplicate.
+
+This is the global "Research & Reuse" discipline applied at function/type
+granularity: reuse before you write, and confirm before you assume.
+
 ### While writing code
 
 - **Name the pattern** when you use one: "this follows the same repo seam as
