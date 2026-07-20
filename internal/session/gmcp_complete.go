@@ -34,6 +34,8 @@ func commandEnv(cfg Config) command.Env {
 		Combat:                cfg.Combat,
 		Flee:                  cfg.Flee,
 		ResolveAttack:         cfg.ResolveAttack,
+		Finish:                cfg.Finish,
+		RobCoins:              cfg.RobCoins,
 		ReloadScripts:         cfg.ReloadScripts,
 		Progression:           cfg.Progression,
 		Faction:               cfg.Faction,

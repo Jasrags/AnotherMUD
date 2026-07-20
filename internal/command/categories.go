@@ -132,6 +132,7 @@ var commandCategories = map[string]string{
 
 	// Combat.
 	"kill":        catCombat,
+	"finish":      catCombat,
 	"consider":    catCombat,
 	"assist":      catCombat,
 	"autoassist":  catCombat,
@@ -153,6 +154,7 @@ var commandCategories = map[string]string{
 	"put":        catItems,
 	"fill":       catItems,
 	"loot":       catItems,
+	"rob":        catItems,
 	"lootmode":   catItems,
 	"autoloot":   catItems,
 	"inventory":  catItems,

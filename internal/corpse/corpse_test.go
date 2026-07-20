@@ -301,3 +301,44 @@ func TestOnMobKilled_IgnoresOtherEvents(t *testing.T) {
 		t.Fatalf("unexpected corpse from non-killed event: %v", got)
 	}
 }
+
+// A mob robbed while helpless (TagLooted) drops no coins on death — the looter
+// already took the purse. Combined with its already-emptied contents, it
+// produces no corpse at all (the double-dip guard for the rob path).
+func TestCreateOnDeath_LootedMobDropsNoCoinsOrCorpse(t *testing.T) {
+	h := newHarness(t)
+	h.mobs.Add(&mob.Template{ID: "core:village-guard", Name: "a village guard", LootTable: "core:guard-loot"})
+	_ = h.loot.Register(&loot.Table{ID: "core:guard-loot", Coin: &loot.CoinBlock{Min: 5, Max: 5}})
+
+	m, err := h.store.SpawnMob(&mob.Template{ID: "core:village-guard", Name: "a village guard", LootTable: "core:guard-loot"})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	m.AddTag(TagLooted) // robbed while down
+	ev := eventbus.MobKilled{MobID: m.ID(), MobName: "a village guard", TemplateID: "core:village-guard", KillerID: "player:bob", RoomID: testRoom}
+	h.svc.CreateOnDeath(context.Background(), ev)
+
+	if got := h.placement.InRoom(testRoom); len(got) != 0 {
+		t.Fatalf("a robbed mob should leave no corpse, room holds %v", got)
+	}
+}
+
+// Control: the SAME mob NOT robbed drops its coin purse into a corpse — proving
+// the skip above is the looted tag, not a broken loot table.
+func TestCreateOnDeath_UnrobbedMobStillDropsCoins(t *testing.T) {
+	h := newHarness(t)
+	h.mobs.Add(&mob.Template{ID: "core:village-guard", Name: "a village guard", LootTable: "core:guard-loot"})
+	_ = h.loot.Register(&loot.Table{ID: "core:guard-loot", Coin: &loot.CoinBlock{Min: 5, Max: 5}})
+
+	m, err := h.store.SpawnMob(&mob.Template{ID: "core:village-guard", Name: "a village guard", LootTable: "core:guard-loot"})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	ev := eventbus.MobKilled{MobID: m.ID(), MobName: "a village guard", TemplateID: "core:village-guard", KillerID: "player:bob", RoomID: testRoom}
+	h.svc.CreateOnDeath(context.Background(), ev)
+
+	corpse := h.findCorpse(t)
+	if v, _ := corpse.Property(PropCoins); v != 5 {
+		t.Fatalf("unrobbed corpse coins = %v, want 5", v)
+	}
+}

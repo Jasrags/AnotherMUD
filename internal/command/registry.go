@@ -489,6 +489,8 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Combat:                env.Combat,
 		Flee:                  env.Flee,
 		ResolveAttack:         env.ResolveAttack,
+		Finish:                env.Finish,
+		RobCoins:              env.RobCoins,
 		ReloadScripts:         env.ReloadScripts,
 		Progression:           env.Progression,
 		Faction:               env.Faction,

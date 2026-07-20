@@ -59,6 +59,18 @@ type Context struct {
 	// from combat.Manager.ResolveSingleAttack + the combat roller; nil in tests
 	// that don't exercise throw.
 	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
+	// Finish is the coup-de-grace primitive (subdual-damage §8): it delivers a
+	// GUARANTEED lethal blow to an already-helpless target, firing the normal
+	// death pipeline (corpse + loot + kill credit + murder-heat) with attacker as
+	// the killer. Distinct from ResolveAttack, which rolls a normal swing and
+	// would merely re-knock-out a helpless foe with a subdual weapon. Returns
+	// whether the target died. Wired in main.go; nil disables the `finish` verb.
+	Finish func(ctx context.Context, target, attacker combat.CombatantID, room world.RoomID) bool
+	// RobCoins rolls the coin purse a mob would drop on death (its loot-table
+	// coin block), for the non-lethal rob-the-helpless path — so a downed foe's
+	// credstick is taken now instead of at a kill. Wired in main.go from the loot
+	// registry + roller; nil ⇒ robbing yields items only, no coins.
+	RobCoins func(mobTemplateID string) int
 	// ReloadScripts is the M17.3 script hot-reload trigger (re-discover
 	// pack Lua → swap the scripting runtime). nil disables the reload
 	// verb; tests that don't exercise reload leave it unset.

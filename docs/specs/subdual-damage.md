@@ -63,6 +63,18 @@ pipeline; a **knock-out listener** sees a subdual finish, **cancels** the death,
 **restores the victim to 1 HP**, applies the **unconscious** condition, and ends
 the engagement. No corpse, no loot, no kill credit — the foe is down, not dead.
 
+> **Downed-foe follow-ups (shipped — a refinement of "no loot").** A helpless
+> (unconscious) foe can now be dealt with two ways (verbs `rob` and `finish`):
+> - **Rob (non-lethal):** take the downed foe's carried items + roll its coin
+>   purse now, leaving it alive. The mob is tagged `looted` (`corpse.TagLooted`)
+>   so a wake → re-knock-out can't re-roll it, and its eventual corpse drops
+>   nothing. This is the "leave a live witness" path (future: a heat/witness hook).
+> - **Finish (coup-de-grace, the §8 family, now shipped):** a *guaranteed lethal*
+>   blow that runs the normal death pipeline (corpse + loot + kill credit +
+>   murder-heat). Distinct from a normal swing, which a subdual weapon would
+>   merely re-knock-out. Both gate on the target actually carrying the
+>   `unconscious` condition.
+
 ### Goals / non-goals
 
 **Goals.** Consume the `subdual` weapon field; give the sap/whip/unarmed their
@@ -73,8 +85,8 @@ machine; keep every non-subdual fight byte-for-byte unchanged.
 
 **Non-goals (this spec).**
 - **A separate nonlethal-damage pool** + the *staggered* state (§8 deferred).
-- **Coup-de-grace / finishing a helpless foe** (turning an unconscious target's
-  knock-out into a kill) — the helpless/coup-de-grace family; deferred (§8).
+- ~~**Coup-de-grace / finishing a helpless foe**~~ — SHIPPED as the `finish`
+  verb (+ the non-lethal `rob`); see the downed-foe follow-ups note in §3 above.
 - **"Attack to subdue" with a lethal weapon** (a per-attack choice to deal
   nonlethal damage at a to-hit penalty) — needs an action-economy / per-swing
   choice the engine lacks (Decision 0). Subdual is a **weapon property**, not a

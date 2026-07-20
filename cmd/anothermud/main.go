@@ -3518,6 +3518,46 @@ func run() error {
 			// must not share combat's tick-confined *rand.Rand.
 			return combatMgr.ResolveSingleAttack(ctx, attacker, target, room, stdRoller{}, cfg.CritMultiplier)
 		},
+		// Coup-de-grace (subdual-damage §8): the `finish` verb's guaranteed lethal
+		// blow on a helpless foe. It runs the normal death pipeline directly
+		// (Subdual=false → the knock-out path is skipped, so it kills) rather than
+		// rolling a swing that a subdual weapon would waste on a re-knock-out. The
+		// pipeline drops a corpse, credits the kill, and draws murder-heat like any
+		// other killing. The command layer gates on the target actually being
+		// unconscious; here we just fetch the name and fire the depletion.
+		Finish: func(ctx context.Context, target, attacker combat.CombatantID, room world.RoomID) bool {
+			e, ok := entityStore.GetByID(entities.EntityID(combat.EntityIDOf(target)))
+			if !ok {
+				return false
+			}
+			m, ok := e.(*entities.MobInstance)
+			if !ok {
+				return false
+			}
+			combatSink.OnVitalDepleted(ctx, combat.VitalDepleted{
+				VictimID:   target,
+				VictimName: m.Name(),
+				AttackerID: attacker,
+				Vital:      combat.VitalHP,
+				Subdual:    false,
+				RoomID:     room,
+			})
+			return true
+		},
+		// RobCoins rolls a mob's loot-table coin purse for the non-lethal `rob`
+		// verb. stdRoller{} (concurrency-safe), NOT the tick-confined corpse/loot
+		// RNG — rob resolves on the connection goroutine, same as ResolveAttack.
+		RobCoins: func(mobTemplateID string) int {
+			tpl, err := registries.Mobs.Get(mob.TemplateID(mobTemplateID))
+			if err != nil || tpl == nil || tpl.LootTable == "" {
+				return 0
+			}
+			tbl, ok := registries.Loot.Get(tpl.LootTable)
+			if !ok {
+				return 0
+			}
+			return loot.RollCoins(tbl.Coin, stdRoller{})
+		},
 		// M17.3: the `reload` verb re-discovers pack Lua from disk and
 		// hot-swaps the scripting runtime — script-only, so world.World
 		// and the content registries are untouched. DiscoverScripts'

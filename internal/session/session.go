@@ -153,6 +153,12 @@ type Config struct {
 	// exercise throw.
 	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
 
+	// Finish (coup-de-grace) + RobCoins (non-lethal rob coin roll) are the
+	// downed-foe primitives, passed through to command.Env. nil disables the
+	// `finish` / `rob` coin path respectively.
+	Finish   func(ctx context.Context, target, attacker combat.CombatantID, room world.RoomID) bool
+	RobCoins func(mobTemplateID string) int
+
 	// ReloadScripts is the M17.3 script hot-reload trigger, passed
 	// through to command.Env so the `reload` verb can re-discover pack
 	// Lua and swap the scripting runtime. nil disables the verb.

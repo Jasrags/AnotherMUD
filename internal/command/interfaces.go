@@ -257,6 +257,16 @@ type Env struct {
 	// that don't exercise throw.
 	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
 
+	// Finish is the coup-de-grace primitive (subdual-damage §8): a guaranteed
+	// lethal blow on an already-helpless foe, firing the normal death pipeline
+	// (corpse + loot + kill credit + murder-heat). Wired at the composition root;
+	// nil disables `finish`.
+	Finish func(ctx context.Context, target, attacker combat.CombatantID, room world.RoomID) bool
+
+	// RobCoins rolls the coin purse a mob would drop on death, for the non-lethal
+	// `rob` verb. Wired from the loot registry + roller; nil ⇒ rob yields items only.
+	RobCoins func(mobTemplateID string) int
+
 	// ReloadScripts is the M17.3 script hot-reload trigger. It
 	// re-discovers pack Lua from disk and swaps the scripting runtime
 	// without a restart, returning the number of scripts loaded. Wired

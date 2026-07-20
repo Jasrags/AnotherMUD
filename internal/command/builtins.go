@@ -74,6 +74,8 @@ func RegisterBuiltins(r *Registry) error {
 				{Name: "source", Type: ArgRoomItem, Prepositions: []string{"from"}},
 			}},
 		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}, BreaksConcealment: true},
+		{Keyword: "rob", Aliases: []string{"mug"}, Handler: RobHandler, Brief: "Take a knocked-out foe's gear without killing them.", Syntax: []string{"rob <foe>"}, BreaksConcealment: true},
+		{Keyword: "finish", Aliases: []string{"execute"}, Handler: FinishHandler, Brief: "Deliver a killing blow to a helpless foe.", Syntax: []string{"finish <foe>"}, BreaksConcealment: true},
 		{Keyword: "autoloot", Handler: AutolootHandler, Brief: "Toggle auto-looting your own kills.", Syntax: []string{"autoloot", "autoloot on|off"}},
 		{Keyword: "autoreload", Handler: AutoreloadHandler, Brief: "Toggle auto-reloading a dry firearm from a spare clip.", Syntax: []string{"autoreload", "autoreload on|off"}},
 		{Keyword: "autoassist", Handler: AutoAssistHandler, Brief: "Toggle automatically joining your party's fights.", Syntax: []string{"autoassist", "autoassist on|off"}},
