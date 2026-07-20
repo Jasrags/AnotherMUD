@@ -6,7 +6,7 @@ description: |
   wireless link, all internal. No rail clutter, nothing to knock loose. Only pays
   off if the shooter's running a smartlink to read the feed.
 tags: [weapon-accessory]
-keywords: [internal smartgun, smartgun internal, internal smart, smart]
+keywords: [internal, internal smartgun, smartgun internal, isg, smart]
 # Weapon ACCESSORY (weapon-accessories.md §3): SR5 Smartgun System, Internal
 # (Core) — occupies the INTERNAL mount (longarms only), so it frees the rails for
 # optics/grips. Like the external unit it `grants: [smartgun]`; the to-hit bonus

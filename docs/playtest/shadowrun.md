@@ -361,18 +361,38 @@ An armored **jacket** has capacity **12** (light — dons instantly); the heavie
 ### Weapon accessories — mount slots
 
 A weapon exposes named **mounts** (barrel / under-barrel / side / top / stock /
-internal); each holds **one** accessory. The Ares Predator V exposes
-**barrel · top · under-barrel**.
+internal); each holds **one** accessory. **Every firearm now carries its SR5
+geometry**: pistols/revolver → barrel · top · under-barrel; the hold-out
+(Streetline) is minimal (barrel · top); SMGs / machine pistol / shotgun add a
+**stock**; assault rifles / sniper / LMG add **stock + internal**; the taser has
+top · under-barrel. Accessories sell at the fixer and the Ares Arms boutique.
 
-- [ ] `get pistol` (or buy one), `modify pistol` — lists the mounts, each
+**The Tier-1 catalog** (all effects live today):
+
+| Accessory | Mount | Provides |
+|-----------|-------|----------|
+| laser sight | top / under-barrel | +1 to-hit |
+| reflex sight | top | +1 to-hit (cheap) |
+| telescopic scope | top | +1 to-hit (premium; range edge is a Tier-2 seam) |
+| foregrip | under-barrel | +1 to-hit (a *distinct* mount — stacks with a top optic) |
+| smartgun system (external) | top / under-barrel | `grants smartgun` (pairs with a smartlink) |
+| internal smartgun | internal | `grants smartgun` — frees the rails (longarms) |
+
+- [ ] `spawn item ares-alpha me`, `modify alpha` — lists all five mounts, each
       **(empty)**.
-- [ ] `modify pistol laser` — **"You attach a laser sight to an Ares Predator V's
-      top mount."** — it seats on the first free compatible mount (the laser fits
-      top *or* under-barrel).
-- [ ] `modify pistol` — the mount now shows its occupant: **"top: a laser sight"**.
-- [ ] Occupancy: install a second accessory that only fits an already-taken mount
-      — refused (**"… has no free mount that fits …"**), *not* silently double-seated.
-- [ ] `unmodify pistol laser` — detaches it back to inventory, freeing the mount.
+- [ ] `modify alpha reflex` — **"You attach a reflex sight … top mount."**;
+      `modify alpha foregrip` → **under-barrel**; `modify alpha internal` →
+      **internal**. Three accessories on three distinct mounts.
+- [ ] `modify alpha` — the mounts show their occupants (top / under-barrel /
+      internal filled).
+- [ ] Occupancy: `modify alpha scope` — the scope only fits **top**, already held
+      by the reflex → **"… has no free mount that fits …"**, *not* double-seated.
+- [ ] `unmodify alpha reflex` frees the top mount → `modify alpha scope` now seats
+      there.
+- [ ] **To-hit lands in a fight:** wield a modded gun (laser/reflex/foregrip) and
+      `kill ganger` on Market Street — the accessory's +to-hit rides the same
+      equip-modifier channel the smartlink bonus does (§40 pairing). A foregrip +
+      a top optic stack (two mounts, ~+2).
 
 ### The mod matters — ballistic soak in a fight
 
@@ -671,6 +691,48 @@ access license; the Ares Arms clerk on `fifth-avenue` gates sales on a valid SIN
 
 ---
 
+## 52. Medkits & First Aid — healing between fights
+
+Three ways to close wounds: a **stimpatch** (flat self-heal, no skill), a
+**medkit** you `treat` with (a First Aid check whose kit rating scales the heal),
+and a `refill` to restock a spent kit. Buy them from the street doc, the
+ripperdoc, the fixer, greasy Ben, or the Ares Arms clerk (stimpatches also at the
+Stuffer Shack + the bars). Every background starts with a stimpatch. Wound
+yourself to test: `set vital hp self 5` (admin).
+
+### Stimpatch — flat self-heal, no skill (`use`)
+
+- [ ] `use stimpatch` at 5 HP — **"You feel a rush of relief. (+8 HP)"**, HP jumps
+      to 13. Single-use: the patch is gone. No First Aid, no roll — the cheap
+      no-skill heal every runner carries.
+
+### `treat` — First Aid off a medkit
+
+- [ ] `get medkit` (or buy one), `treat` while wounded — a First Aid + Logic
+      check. On success: **"You patch yourself up. (+N HP)"** and a charge of
+      supplies is spent; on a miss: **"Your hands fumble the field dressing …"**
+      (a charge is spent either way — no free-retry farming).
+- [ ] **Rating scales the heal.** A `pocket-medkit` (rating 1) barely helps; the
+      standard `medkit` (rating 3) closes real damage; a `trauma-kit` (rating 6)
+      is clinic-grade — the rating adds to both the check and the heal cap, so a
+      better kit heals more *and* misses less. Untrained still works (defaulted),
+      just weakly.
+- [ ] **Treat an ally.** `treat <target>` patches someone else in the room (a
+      groupmate, a hireling) — the patient sees **"… patches you up. (+N HP)"**.
+
+### `refill` — restock a spent kit
+
+- [ ] Spend a medkit down, `get medkit-supplies` (buy a box), `refill` — **"You
+      restock a medkit with fresh supplies. (10/10)"**; the box is consumed. An
+      empty kit is never destroyed — it's the reusable tool; the supplies are what
+      run out.
+- [ ] `refill` a **full** kit — **"… is already fully stocked."**, and the supply
+      box is **not** wasted.
+- [ ] **Charges persist across relog.** Spend a kit to 3/10, `quit`, log back in —
+      it's still 3/10 (not reset to full). Refill and it holds at 10/10.
+
+---
+
 ## Notes / known gaps (Shadowrun)
 
 - **This is a separate boot.** `ANOTHERMUD_PACKS=shadowrun` — the core and WoT
@@ -697,9 +759,17 @@ access license; the Ares Arms clerk on `fifth-avenue` gates sales on a valid SIN
   damage-over-time.
 - **Deferred combat depth:** the magazine model and cross-room `shoot` for the SR
   pack are recorded in the SR-M3c deferred-fixes memory.
+- **Weapon accessories (§44) — Tier-1 shipped:** every firearm now exposes SR5
+  mount geometry, and the live Tier-1 set (laser/reflex sight, telescopic scope,
+  foregrip → +to-hit; external/internal smartgun → `grants smartgun`) attaches and
+  works today. Still deferred (Tier-2, each a small seam): **accessory recoil
+  compensation** (gas-vent, foregrip's RC role), **range extension** (long barrel,
+  the scope's range edge), and a **silencer stealth flag**. To-hit modifiers
+  currently **stack additively** across mounts (no SR5 accuracy-cap seam) — modest
+  today (~+2 with a full-investment build).
 - **Item modification (§44):** the shipped Core armor mods are the ones with live
   consumers — ballistic weave (soak), chemical protection / seal + radiation
-  shielding (hazard toxin/rad), and the laser sight accessory. The rest of the
+  shielding (hazard toxin/rad), and the weapon accessories above. The rest of the
   Core set (**Fire Resistance, Insulation, Nonconductivity, Shock Frills, Thermal
   Damping**) is **not authored yet** — each needs a damage/detection mechanic that
   doesn't exist (fire/cold/electrical damage, thermographic detection). **Cyberware
